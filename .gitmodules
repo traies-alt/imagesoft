@@ -7,3 +7,6 @@
 [submodule "deps/glad"]
 	path = deps/glad
 	url = https://github.com/Dav1dde/glad.git
+[submodule "deps/DevIL"]
+	path = deps/DevIL
+	url = git@github.com:DentonW/DevIL.git

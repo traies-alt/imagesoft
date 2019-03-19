@@ -1,0 +1,31 @@
+#include "ImageWindowState.h"
+#include <SOIL.h>
+#include <optional>
+#include <string>
+
+std::optional<ImageWindowState> LoadImageFile(const char * filepath) 
+{
+	GLuint tex_2d = SOIL_load_OGL_texture(
+			filepath,
+			SOIL_LOAD_AUTO,
+			SOIL_CREATE_NEW_ID,
+			SOIL_FLAG_MIPMAPS | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT
+	);
+	if (tex_2d == 0) {
+			return std::nullopt;
+	} else {
+		int w, h;
+    int miplevel = 0;
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, miplevel, GL_TEXTURE_WIDTH, &w);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, miplevel, GL_TEXTURE_HEIGHT, &h);
+		
+		ImageWindowState im = {
+			tex_2d,
+			w,
+			h,
+			1.0f,
+			std::string(filepath).c_str()
+		};
+		return std::make_optional(im);
+	}
+}
