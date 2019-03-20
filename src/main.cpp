@@ -76,6 +76,8 @@ int main(int, char**)
 
     auto imageWindows = vector<unique_ptr<ImageWindowState>>();
     bool showFileSelect = false;
+		bool showFileSelectError = false;
+		int imageID = 0;
     // Main loop
     while (!glfwWindowShouldClose(window))
     {
@@ -91,6 +93,18 @@ int main(int, char**)
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+				if (showFileSelectError) {
+					ImGui::OpenPopup("Image Select Error");
+					if (ImGui::BeginPopupModal("Image Select Error", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+						ImGui::Text("File could not be opened. Was it an Image?");
+						if (ImGui::Button("Accept")) {
+							showFileSelectError = false;
+							ImGui::CloseCurrentPopup();
+						}
+						ImGui::EndPopup();
+					}
+
+				}
         if (show_demo_window)
             ImGui::ShowDemoWindow(&show_demo_window);
         if (showFileSelect) {
@@ -100,7 +114,7 @@ int main(int, char**)
             // Simple File Navigation
             ImGui::Text(path.c_str());
             if (ImGui::Button("..")) {
-                auto pathEntry = filesystem::directory_entry(path);    
+                auto pathEntry = filesystem::directory_entry(path);
                 path = pathEntry.path().parent_path().string();
             }
             for (const auto & entry : filesystem::directory_iterator(path)) {
@@ -110,12 +124,16 @@ int main(int, char**)
                     } else {
                         auto imOpt = LoadImageFile(entry.path().string().c_str());
                         if (imOpt.has_value()) {
-                            imageWindows.push_back(make_unique<ImageWindowState>(imOpt.value()));
-                            showFileSelect = false;
-                        } 
+													auto val = imOpt.value();
+													val.id = imageID++;
+													imageWindows.push_back(make_unique<ImageWindowState>(val));
+													showFileSelect = false;
+                        } else {
+													showFileSelectError = true;
+												}
                     }
                 }
-                
+
             }
             ImGui::End();
         }
@@ -151,14 +169,9 @@ int main(int, char**)
                 auto im = it->get();
                 static float f = 0.0f;
                 static int counter = 0;
-                auto title = string("Image Window ").append(im->filename);
-                ImGui::Begin(title.c_str());                     
-                // ImGui::BeginMenuBar();
-                // ImGui::MenuItem("File");
-                // ImGui::BeginMenu("Open...");
-                // ImGui::EndMenu();
-                // ImGui::EndMenuBar();
-                
+                auto title = string("Image Window ").append(to_string(im->id));
+                ImGui::Begin(title.c_str());
+
                 if (im->texture != 0) {
                     ImGui::SliderFloat("Zoom", &im->zoom, 0, 2.0f);
                     ImGui::Image(reinterpret_cast<ImTextureID>(im->texture), ImVec2(im->zoom * im->width, im->zoom * im->height));
