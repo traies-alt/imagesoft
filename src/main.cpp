@@ -9,6 +9,8 @@
 #include <vector>
 #include <filesystem>
 #include <memory>
+#include <functional>
+#include <sstream>     
 
 using namespace std;
 
@@ -16,6 +18,27 @@ static void glfw_error_callback(int error, const char* description)
 {
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
+
+bool SimpleFileNavigation(string &path, function<void(filesystem::path)> onFileSelect)
+{
+    ImGui::Text(path.c_str());
+    if (ImGui::Button("..")) {
+        auto pathEntry = filesystem::directory_entry(path);
+        path = pathEntry.path().parent_path().string();
+    }
+    for (const auto & entry : filesystem::directory_iterator(path)) {
+        if (ImGui::Button(entry.path().filename().string().c_str())) {
+            if (entry.is_directory()) {
+                path = entry.path().string();
+            } else {
+                onFileSelect(entry.path());
+            }
+        }
+    }
+    return true;
+}
+
+
 
 int main(int, char**)
 {
@@ -76,8 +99,10 @@ int main(int, char**)
 
     auto imageWindows = vector<unique_ptr<ImageWindowState>>();
     bool showFileSelect = false;
-		bool showFileSelectError = false;
-		int imageID = 0;
+    bool showFileSelectError = false;
+    int imageID = 0;
+    string path = filesystem::current_path().string();
+    char saveFileName[50] = {0};
     // Main loop
     while (!glfwWindowShouldClose(window))
     {
@@ -93,48 +118,36 @@ int main(int, char**)
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-				if (showFileSelectError) {
-					ImGui::OpenPopup("Image Select Error");
-					if (ImGui::BeginPopupModal("Image Select Error", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-						ImGui::Text("File could not be opened. Was it an Image?");
-						if (ImGui::Button("Accept")) {
-							showFileSelectError = false;
-							ImGui::CloseCurrentPopup();
-						}
-						ImGui::EndPopup();
-					}
+        if (showFileSelectError) {
+            ImGui::OpenPopup("Image Select Error");
+            if (ImGui::BeginPopupModal("Image Select Error", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+                ImGui::Text("File could not be opened. Was it an Image?");
+                if (ImGui::Button("Accept")) {
+                    showFileSelectError = false;
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::EndPopup();
+            }
 
-				}
+        }
         if (show_demo_window)
             ImGui::ShowDemoWindow(&show_demo_window);
         if (showFileSelect) {
             ImGui::Begin("Choose File Window");
-            static string path = filesystem::current_path().string();
+           
 
             // Simple File Navigation
-            ImGui::Text(path.c_str());
-            if (ImGui::Button("..")) {
-                auto pathEntry = filesystem::directory_entry(path);
-                path = pathEntry.path().parent_path().string();
-            }
-            for (const auto & entry : filesystem::directory_iterator(path)) {
-                if (ImGui::Button(entry.path().filename().string().c_str())) {
-                    if (entry.is_directory()) {
-                        path = entry.path().string();
-                    } else {
-                        auto imOpt = LoadImageFile(entry.path().string().c_str());
-                        if (imOpt.has_value()) {
-													auto val = imOpt.value();
-													val.id = imageID++;
-													imageWindows.push_back(make_unique<ImageWindowState>(val));
-													showFileSelect = false;
-                        } else {
-													showFileSelectError = true;
-												}
-                    }
+            SimpleFileNavigation(path, [&](filesystem::path p){
+                auto imOpt = LoadImageFile(p.string().c_str());
+                if (imOpt.has_value()) {
+                    auto val = imOpt.value();
+                    val.id = imageID++;
+                    imageWindows.push_back(make_unique<ImageWindowState>(val));
+                    showFileSelect = false;
+                } else {
+                    showFileSelectError = true;
                 }
-
-            }
+            });
             ImGui::End();
         }
         if (ImGui::BeginMainMenuBar())
@@ -144,7 +157,9 @@ int main(int, char**)
                 if (ImGui::MenuItem("Open", "Ctrl+O")) {
                     showFileSelect = true;
                 }
-                if (ImGui::MenuItem("Save", "Ctrl+S")) {}
+                if (ImGui::MenuItem("Save", "Ctrl+S")) {
+                    
+                }
                 if (ImGui::MenuItem("Save As..")) {}
                 ImGui::Separator();
                 if (ImGui::MenuItem("Quit", "Alt+F4")) {}
@@ -175,6 +190,23 @@ int main(int, char**)
                 if (im->texture != 0) {
                     ImGui::SliderFloat("Zoom", &im->zoom, 0, 2.0f);
                     ImGui::Image(reinterpret_cast<ImTextureID>(im->texture), ImVec2(im->zoom * im->width, im->zoom * im->height));
+                    if (ImGui::Button("Save")) {
+                        ImGui::OpenPopup("Save");
+                    }
+                    if (ImGui::BeginPopup("Save")) {
+                        
+                        SimpleFileNavigation(path, [&saveFileName](filesystem::path p){
+                            strncpy_s(saveFileName, p.filename().string().c_str(), 50);
+                        });
+                        ImGui::InputText("New image name", saveFileName, 50);
+                        if (ImGui::Button("Save")) {
+                            std::stringstream fnBuffer;   
+                            fnBuffer << path << "/" << string(saveFileName);   
+                            SaveImageFile(fnBuffer.str().c_str(), im);
+                            ImGui::CloseCurrentPopup();
+                        }
+                        ImGui::EndPopup();
+                    }
                 }
                 ImGui::End();
             }

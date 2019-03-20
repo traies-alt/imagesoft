@@ -1,6 +1,7 @@
 #pragma once
 #include <optional>
 #include <glad/glad.h>  // Initialize with gladLoadGL()
+#include <memory>
 
 struct ImageWindowState {
 	GLuint texture;
@@ -11,3 +12,4 @@ struct ImageWindowState {
 };
 
 std::optional<ImageWindowState> LoadImageFile(const char * filepath);
+bool SaveImageFile(const char * filepath, ImageWindowState * image);
