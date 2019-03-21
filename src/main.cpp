@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <memory>
 #include <functional>
+#include <fstream>
 #include <sstream>     
 
 using namespace std;
@@ -37,8 +38,6 @@ bool SimpleFileNavigation(string &path, function<void(filesystem::path)> onFileS
     }
     return true;
 }
-
-
 
 int main(int, char**)
 {
@@ -100,9 +99,11 @@ int main(int, char**)
     auto imageWindows = vector<unique_ptr<ImageWindowState>>();
     bool showFileSelect = false;
     bool showFileSelectError = false;
+    bool showFileSelectRaw = false;
     int imageID = 0;
     string path = filesystem::current_path().string();
     char saveFileName[50] = {0};
+    static bool no_close = false;
     // Main loop
     while (!glfwWindowShouldClose(window))
     {
@@ -134,7 +135,6 @@ int main(int, char**)
             ImGui::ShowDemoWindow(&show_demo_window);
         if (showFileSelect) {
             ImGui::Begin("Choose File Window");
-           
 
             // Simple File Navigation
             SimpleFileNavigation(path, [&](filesystem::path p){
@@ -150,6 +150,45 @@ int main(int, char**)
             });
             ImGui::End();
         }
+
+        if (showFileSelectRaw) {
+            ImGui::Begin("Chose File Raw");
+            static int rawWidth, rawHeight;
+            ImGui::InputInt("Raw Width", &rawWidth);
+            ImGui::InputInt("Raw Height", &rawHeight);
+           
+            SimpleFileNavigation(path, [&imageWindows, &imageID, &showFileSelectRaw](filesystem::path p) {
+                ifstream input(p.string().c_str(), ios::binary);
+                std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(input), {});
+                GLuint texture_map;
+                glGenTextures(1, &texture_map);
+                glBindTexture(GL_TEXTURE_2D, texture_map);
+
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, rawWidth, rawHeight, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, buffer.data());
+                glBindTexture(GL_TEXTURE_2D, 0);
+                
+                unsigned char *b = new unsigned char[buffer.size()];
+                std::copy(buffer.begin(), buffer.end(), b);
+                ImageWindowState i = {
+                    texture_map,
+                    rawWidth,
+                    rawHeight,
+                    1.0f,
+                    p.filename().string().c_str(),
+                    imageID++,
+                    b,
+                    GL_LUMINANCE
+                };
+                imageWindows.push_back(make_unique<ImageWindowState>(i));
+                // showFileSelectRaw = false;
+            });
+            ImGui::End();
+        }
         if (ImGui::BeginMainMenuBar())
         {
             if (ImGui::BeginMenu("File"))
@@ -157,6 +196,14 @@ int main(int, char**)
                 if (ImGui::MenuItem("Open", "Ctrl+O")) {
                     showFileSelect = true;
                 }
+                if (ImGui::MenuItem("Open Raw", "Ctrl+O")) {
+                    showFileSelectRaw = true;
+                }
+                if (ImGui::BeginPopup("Open Raw")) {
+                    
+                    ImGui::EndPopup();
+                }
+
                 if (ImGui::MenuItem("Save", "Ctrl+S")) {
                     
                 }
@@ -185,30 +232,64 @@ int main(int, char**)
                 static float f = 0.0f;
                 static int counter = 0;
                 auto title = string("Image Window ").append(to_string(im->id));
-                ImGui::Begin(title.c_str());
-
-                if (im->texture != 0) {
-                    ImGui::SliderFloat("Zoom", &im->zoom, 0, 2.0f);
-                    ImGui::Image(reinterpret_cast<ImTextureID>(im->texture), ImVec2(im->zoom * im->width, im->zoom * im->height));
-                    if (ImGui::Button("Save")) {
-                        ImGui::OpenPopup("Save");
-                    }
-                    if (ImGui::BeginPopup("Save")) {
-                        
-                        SimpleFileNavigation(path, [&saveFileName](filesystem::path p){
-                            strncpy_s(saveFileName, p.filename().string().c_str(), 50);
-                        });
-                        ImGui::InputText("New image name", saveFileName, 50);
+                if (ImGui::Begin(title.c_str(), &no_close, 0)) {
+                    if (im->texture != 0) {
+                        ImGui::SliderFloat("Zoom", &im->zoom, 0, 2.0f);
+                        ImGui::Image(reinterpret_cast<ImTextureID>(im->texture), ImVec2(im->zoom * im->width, im->zoom * im->height));
                         if (ImGui::Button("Save")) {
-                            std::stringstream fnBuffer;   
-                            fnBuffer << path << "/" << string(saveFileName);   
-                            SaveImageFile(fnBuffer.str().c_str(), im);
-                            ImGui::CloseCurrentPopup();
+                            ImGui::OpenPopup("Save");
                         }
-                        ImGui::EndPopup();
+                        if (ImGui::BeginPopup("Save")) {
+                            
+                            SimpleFileNavigation(path, [&saveFileName](filesystem::path p){
+                                strncpy_s(saveFileName, p.filename().string().c_str(), 50);
+                            });
+                            ImGui::InputText("New image name", saveFileName, 50);
+                            if (ImGui::Button("Save")) {
+                                std::stringstream fnBuffer;   
+                                fnBuffer << path << "/" << string(saveFileName);   
+                                SaveImageFile(fnBuffer.str().c_str(), im);
+                                ImGui::CloseCurrentPopup();
+                            }
+                            ImGui::EndPopup();
+                        }
+
+                        ImGui::InputInt("Width", &im->width);
+                        ImGui::InputInt("Height", &im->height);
+                        if (ImGui::Button("Reload Image")) {
+                            ReloadImage(im);
+                        }
+                         if (ImGui::Button("Color Format"))
+                            ImGui::OpenPopup("Color Format");
+                        ImGui::Text("Color Format: %d", im->colorFormat);
+                        if (ImGui::BeginPopup("Color Format")) {
+                            if (ImGui::Selectable("GL_RED")) {
+                                im->colorFormat = GL_RED;
+                                ImGui::CloseCurrentPopup();
+                            }
+                            if (ImGui::Selectable("GL_GREEN")) {
+                                im->colorFormat = GL_GREEN;
+                                ImGui::CloseCurrentPopup();
+                            }
+                            if (ImGui::Selectable("GL_BLUE")) {
+                                im->colorFormat = GL_BLUE;
+                                ImGui::CloseCurrentPopup();
+                            }
+                            if (ImGui::Selectable("GL_LUMINANCE")) {
+                                im->colorFormat = GL_LUMINANCE;
+                                ImGui::CloseCurrentPopup();
+                            }
+                            if (ImGui::Selectable("GL_RGBA")) {
+                                im->colorFormat = GL_RGBA;
+                                ImGui::CloseCurrentPopup();
+                            }
+                            ImGui::EndPopup();
+                        }
                     }
+                    ImGui::End();
+                } else {
+                    // Close Window and destroy image
                 }
-                ImGui::End();
             }
         }
 
