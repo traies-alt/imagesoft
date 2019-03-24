@@ -5,38 +5,23 @@
 #include <glad/glad.h>  // Initialize with gladLoadGL()
 #include <GLFW/glfw3.h>
 #include <SOIL.h>
-#include "ImageWindowState.h"
 #include <vector>
 #include <filesystem>
 #include <memory>
 #include <functional>
 #include <fstream>
-#include <sstream>     
+#include <sstream>
+#include <iostream>
+
+#include "ImageWindowState.h"
+#include "UIComponents.h"
+#include "ShaderLayer.h"
 
 using namespace std;
 
 static void glfw_error_callback(int error, const char* description)
 {
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
-}
-
-bool SimpleFileNavigation(string &path, function<void(filesystem::path)> onFileSelect)
-{
-    ImGui::Text(path.c_str());
-    if (ImGui::Button("..")) {
-        auto pathEntry = filesystem::directory_entry(path);
-        path = pathEntry.path().parent_path().string();
-    }
-    for (const auto & entry : filesystem::directory_iterator(path)) {
-        if (ImGui::Button(entry.path().filename().string().c_str())) {
-            if (entry.is_directory()) {
-                path = entry.path().string();
-            } else {
-                onFileSelect(entry.path());
-            }
-        }
-    }
-    return true;
 }
 
 int main(int, char**)
@@ -56,17 +41,18 @@ int main(int, char**)
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // Required on Mac
 #else
     // GL 3.0 + GLSL 130
-    const char* glsl_version = "#version 130";
+    const char* glsl_version = "#version 150";
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
-    //glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
-    //glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);  // 3.2+ only
+    // glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
 #endif
 
     // Create window with graphics context
     GLFWwindow* window = glfwCreateWindow(1920, 1080, "Dear ImGui GLFW+OpenGL3 example", NULL, NULL);
     if (window == NULL)
         return 1;
+
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1); // Enable vsync
 
@@ -76,6 +62,47 @@ int main(int, char**)
         fprintf(stderr, "Failed to initialize OpenGL loader!\n");
         return 1;
     }
+
+		/* init vertex array for triangle */
+		GLuint VertexArrayID;
+		glGenVertexArrays(1, &VertexArrayID);
+		glBindVertexArray(VertexArrayID);
+
+		// An array of 3 vectors which represents 3 vertices
+		static const GLfloat g_vertex_buffer_data[] = {
+			-1.0f, -1.0f, 0.0f,
+			1.0f, -1.0f, 0.0f,
+			1.0f,  1.0f, 0.0f,
+			-1.0f, -1.0f, 0.0f,
+			-1.0f, 1.0f, 0.0f,
+			1.0f, 1.0f, 0.0f,
+		};
+
+		static const GLfloat g_uv_buffer_data[] = {
+			0.0f, 0.0f,
+			1.0f, 0.0f,
+			1.0f,  1.0f,
+			0.0f, 0.0f,
+			0.0f, 1.0f,
+			1.0f, 1.0f,
+		};
+
+		// This will identify our vertex buffer
+		GLuint vertexbuffer;
+		// Generate 1 buffer, put the resulting identifier in vertexbuffer
+		glGenBuffers(1, &vertexbuffer);
+		// The following commands will talk about our 'vertexbuffer' buffer
+		glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+		// Give our vertices to OpenGL.
+		glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+
+		GLuint uvbuffer;
+		glGenBuffers(1, &uvbuffer);
+		glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(g_uv_buffer_data), g_uv_buffer_data, GL_STATIC_DRAW);
+
+		GLuint programID = LoadShaders("./src/SimpleVertexShader.vertexshader", "./src/SimpleFragmentShader.fragmentshader");
+		GLuint TextureID  = glGetUniformLocation(programID, "myTextureSampler");
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -95,7 +122,6 @@ int main(int, char**)
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
     float zoom = 1;
-
     auto imageWindows = vector<unique_ptr<ImageWindowState>>();
     bool showFileSelect = false;
     bool showFileSelectError = false;
@@ -104,6 +130,7 @@ int main(int, char**)
     string path = filesystem::current_path().string();
     char saveFileName[50] = {0};
     static bool no_close = false;
+
     // Main loop
     while (!glfwWindowShouldClose(window))
     {
@@ -137,17 +164,18 @@ int main(int, char**)
             ImGui::Begin("Choose File Window");
 
             // Simple File Navigation
-            SimpleFileNavigation(path, [&](filesystem::path p){
-                auto imOpt = LoadImageFile(p.string().c_str());
-                if (imOpt.has_value()) {
-                    auto val = imOpt.value();
-                    val.id = imageID++;
-                    imageWindows.push_back(make_unique<ImageWindowState>(val));
-                    showFileSelect = false;
-                } else {
-                    showFileSelectError = true;
-                }
-            });
+						filesystem::path p;
+						if (SimpleFileNavigation(path, p)) {
+							auto imOpt = LoadImageFile(p.string().c_str(), programID, TextureID);
+							if (imOpt.has_value()) {
+									auto val = imOpt.value();
+									val.id = imageID++;
+									imageWindows.push_back(make_unique<ImageWindowState>(val));
+									showFileSelect = false;
+							} else {
+									showFileSelectError = true;
+							}
+						}
             ImGui::End();
         }
 
@@ -156,8 +184,8 @@ int main(int, char**)
             static int rawWidth, rawHeight;
             ImGui::InputInt("Raw Width", &rawWidth);
             ImGui::InputInt("Raw Height", &rawHeight);
-           
-            SimpleFileNavigation(path, [&imageWindows, &imageID, &showFileSelectRaw](filesystem::path p) {
+						filesystem::path p;
+						if (SimpleFileNavigation(path, p)) {
                 ifstream input(p.string().c_str(), ios::binary);
                 std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(input), {});
                 GLuint texture_map;
@@ -171,8 +199,37 @@ int main(int, char**)
 
                 glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, rawWidth, rawHeight, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, buffer.data());
                 glBindTexture(GL_TEXTURE_2D, 0);
-                
-                unsigned char *b = new unsigned char[buffer.size()];
+
+								// The framebuffer, which regroups 0, 1, or more textures, and 0 or 1 depth buffer.
+								GLuint FramebufferName = 0;
+								glGenFramebuffers(1, &FramebufferName);
+								glBindFramebuffer(GL_FRAMEBUFFER, FramebufferName);
+
+								// The texture we're going to render to
+								GLuint renderedTexture;
+								glGenTextures(1, &renderedTexture);
+
+								// "Bind" the newly created texture : all future texture functions will modify this texture
+								glBindTexture(GL_TEXTURE_2D, renderedTexture);
+
+								// Give an empty image to OpenGL ( the last "0" )
+								glTexImage2D(GL_TEXTURE_2D, 0,GL_RGBA, rawWidth, rawHeight, 0,GL_RGBA, GL_UNSIGNED_BYTE, 0);
+
+								// Poor filtering. Needed !
+								glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+								glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+								// Set "renderedTexture" as our colour attachement #0
+								glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, renderedTexture, 0);
+
+								// Set the list of draw buffers.
+								GLenum DrawBuffers[] = {GL_COLOR_ATTACHMENT0};
+								glDrawBuffers(1, DrawBuffers); // "1" is the size of DrawBuffers
+
+								if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+									cout << "Error rendering to texture." << endl;
+
+								unsigned char *b = new unsigned char[buffer.size()];
                 std::copy(buffer.begin(), buffer.end(), b);
                 ImageWindowState i = {
                     texture_map,
@@ -182,11 +239,16 @@ int main(int, char**)
                     p.filename().string().c_str(),
                     imageID++,
                     b,
-                    GL_LUMINANCE
+                    GL_LUMINANCE,
+										FramebufferName,
+										renderedTexture,
+										"",
+										programID,
+										TextureID,
                 };
                 imageWindows.push_back(make_unique<ImageWindowState>(i));
                 // showFileSelectRaw = false;
-            });
+						}
             ImGui::End();
         }
         if (ImGui::BeginMainMenuBar())
@@ -200,12 +262,12 @@ int main(int, char**)
                     showFileSelectRaw = true;
                 }
                 if (ImGui::BeginPopup("Open Raw")) {
-                    
+
                     ImGui::EndPopup();
                 }
 
                 if (ImGui::MenuItem("Save", "Ctrl+S")) {
-                    
+
                 }
                 if (ImGui::MenuItem("Save As..")) {}
                 ImGui::Separator();
@@ -232,64 +294,7 @@ int main(int, char**)
                 static float f = 0.0f;
                 static int counter = 0;
                 auto title = string("Image Window ").append(to_string(im->id));
-                if (ImGui::Begin(title.c_str(), &no_close, 0)) {
-                    if (im->texture != 0) {
-                        ImGui::SliderFloat("Zoom", &im->zoom, 0, 2.0f);
-                        ImGui::Image(reinterpret_cast<ImTextureID>(im->texture), ImVec2(im->zoom * im->width, im->zoom * im->height));
-                        if (ImGui::Button("Save")) {
-                            ImGui::OpenPopup("Save");
-                        }
-                        if (ImGui::BeginPopup("Save")) {
-                            
-                            SimpleFileNavigation(path, [&saveFileName](filesystem::path p){
-                                strncpy_s(saveFileName, p.filename().string().c_str(), 50);
-                            });
-                            ImGui::InputText("New image name", saveFileName, 50);
-                            if (ImGui::Button("Save")) {
-                                std::stringstream fnBuffer;   
-                                fnBuffer << path << "/" << string(saveFileName);   
-                                SaveImageFile(fnBuffer.str().c_str(), im);
-                                ImGui::CloseCurrentPopup();
-                            }
-                            ImGui::EndPopup();
-                        }
-
-                        ImGui::InputInt("Width", &im->width);
-                        ImGui::InputInt("Height", &im->height);
-                        if (ImGui::Button("Reload Image")) {
-                            ReloadImage(im);
-                        }
-                         if (ImGui::Button("Color Format"))
-                            ImGui::OpenPopup("Color Format");
-                        ImGui::Text("Color Format: %d", im->colorFormat);
-                        if (ImGui::BeginPopup("Color Format")) {
-                            if (ImGui::Selectable("GL_RED")) {
-                                im->colorFormat = GL_RED;
-                                ImGui::CloseCurrentPopup();
-                            }
-                            if (ImGui::Selectable("GL_GREEN")) {
-                                im->colorFormat = GL_GREEN;
-                                ImGui::CloseCurrentPopup();
-                            }
-                            if (ImGui::Selectable("GL_BLUE")) {
-                                im->colorFormat = GL_BLUE;
-                                ImGui::CloseCurrentPopup();
-                            }
-                            if (ImGui::Selectable("GL_LUMINANCE")) {
-                                im->colorFormat = GL_LUMINANCE;
-                                ImGui::CloseCurrentPopup();
-                            }
-                            if (ImGui::Selectable("GL_RGBA")) {
-                                im->colorFormat = GL_RGBA;
-                                ImGui::CloseCurrentPopup();
-                            }
-                            ImGui::EndPopup();
-                        }
-                    }
-                    ImGui::End();
-                } else {
-                    // Close Window and destroy image
-                }
+								ImageWindow(*im, vertexbuffer, uvbuffer);
             }
         }
 
@@ -301,6 +306,23 @@ int main(int, char**)
         glViewport(0, 0, display_w, display_h);
         glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT);
+
+				// glUseProgram(programID);
+				// // 1st attribute buffer : vertices
+				// glEnableVertexAttribArray(0);
+				// glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+				// glVertexAttribPointer(
+				// 	0,                  // attribute 0. No particular reason for 0, but must match the layout in the shader.
+				// 	3,                  // size
+				// 	GL_FLOAT,           // type
+				// 	GL_FALSE,           // normalized?
+				// 	0,                  // stride
+				// 	(void*)0            // array buffer offset
+				// );
+				// // Draw the triangle !
+				// glDrawArrays(GL_TRIANGLES, 0, 3); // Starting from vertex 0; 3 vertices total -> 1 triangle
+				// glDisableVertexAttribArray(0);
+
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwSwapBuffers(window);

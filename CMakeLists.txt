@@ -12,7 +12,9 @@ file(GLOB soil ${SOIL}/image_DXT.c ${SOIL}/image_helper.c ${SOIL}/SOIL.c ${SOIL}
 # imGui
 file(GLOB imGui deps/imgui/*.cpp deps/imgui/examples/imgui_impl_opengl3.cpp deps/imgui/examples/imgui_impl_glfw.cpp)
 #glad
-add_executable(ImageSoft src/main.cpp src/ImageWindowState.cpp ${imGui} ${soil} deps/glad/src/glad.c)
+
+file(GLOB ImageSoftSource src/*.cpp)
+add_executable(ImageSoft ${ImageSoftSource} ${imGui} ${soil} deps/glad/src/glad.c)
 target_include_directories(ImageSoft PUBLIC deps/glad/include)
 target_include_directories(ImageSoft PUBLIC deps/imgui)
 add_definitions(-DIMGUI_IMPL_OPENGL_LOADER_GLAD)
@@ -29,7 +31,6 @@ if (OPENGL_FOUND)
     target_include_directories(ImageSoft PUBLIC ${OPENGL_INCLUDE_DIR})
     target_link_libraries(ImageSoft ${OPENGL_gl_LIBRARY})
 endif(OPENGL_FOUND)
-
 
 
 
