@@ -38,54 +38,13 @@ bool ImageWindow(ImageWindowState &im, GLuint vertexBuffer, GLuint uvbuffer)
 		if (im.texture != 0) {
 				ImGui::SliderFloat("Zoom", &im.zoom, 0, 2.0f);
 				ImGui::Image(reinterpret_cast<ImTextureID>(im.texture), ImVec2(im.zoom * im.width, im.zoom * im.height));
-				if (im.outputName != 0) {
-					glBindFramebuffer(GL_FRAMEBUFFER, im.outputName);
-					glViewport(0,0,im.width,im.height);
-					glClear(GL_COLOR_BUFFER_BIT);
-
-					//match projection to window resolution (could be in reshape callback)
-					// glMatrixMode(GL_PROJECTION);
-
-					glUseProgram(im.mainShader);
-					glActiveTexture(GL_TEXTURE0);
-					glBindTexture(GL_TEXTURE_2D, im.texture);
-
-					// Texture Sampler
-					glUniform1i(im.textureSampler, 0);
-
-					glEnableVertexAttribArray(0);
-					glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
-					glVertexAttribPointer(
-						0,                  // attribute 0. No particular reason for 0, but must match the layout in the shader.
-						3,                  // size
-						GL_FLOAT,           // type
-						GL_FALSE,           // normalized?
-						0,                  // stride
-						(void*)0            // array buffer offset
-					);
-
-					glEnableVertexAttribArray(1);
-					glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
-					glVertexAttribPointer(
-						1,                                // attribute. No particular reason for 1, but must match the layout in the shader.
-						2,                                // size : U+V => 2
-						GL_FLOAT,                         // type
-						GL_FALSE,                         // normalized?
-						0,                                // stride
-						(void*)0                          // array buffer offset
-					);
-					// Draw the triangle !
-					glDrawArrays(GL_TRIANGLES, 0, 6); // Starting from vertex 0; 3 vertices total -> 1 triangle
-					glDisableVertexAttribArray(0);
-					glDisableVertexAttribArray(1);
-
-					glDisable(GL_TEXTURE_2D);
-					glBindTexture(GL_TEXTURE_2D, 0);
-					glFlush();
-
-					glBindFramebuffer(GL_FRAMEBUFFER, 0);
-					ImGui::Image(reinterpret_cast<ImTextureID>(im.outputTexture), ImVec2(im.zoom * im.width, im.zoom * im.height));
+				GLuint t = im.texture;
+				GLuint ot;
+				for (auto const& filter: im.filters) {
+					// t = *it->ApplyFilter(t);
+					t = filter->ApplyFilter(t);
 				}
+				ImGui::Image(reinterpret_cast<ImTextureID>(t), ImVec2(im.zoom * im.width, im.zoom * im.height));
 				if (ImGui::Button("Save")) {
 						ImGui::OpenPopup("Save");
 				}

@@ -3,6 +3,9 @@
 #include <glad/glad.h>  // Initialize with gladLoadGL()
 #include <memory>
 #include <string>
+#include <vector>
+
+#include "Filters.h"
 
 struct ImageWindowState {
 	GLuint texture;
@@ -12,13 +15,11 @@ struct ImageWindowState {
 	int id;
 	unsigned char * data;
 	GLenum colorFormat;
-	GLuint outputName;
-	GLuint outputTexture;
 	std::string outputPath;
-	GLuint mainShader;
-	GLuint textureSampler;
+	std::vector<IFilter*> filters;
 };
 
-std::optional<ImageWindowState> LoadImageFile(const char * filepath, GLuint programID, GLuint textureSampler);
+std::optional<ImageWindowState> LoadImageFile(const char * filepath);
+// std::optional<ImageWindowState> LoadImageFileRaw(const char * filepath);
 bool SaveImageFile(const char * filepath, ImageWindowState * image);
 bool ReloadImage(ImageWindowState * image);
