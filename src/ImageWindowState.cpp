@@ -66,7 +66,7 @@ optional<ImageWindowState> LoadImageFile(const char * filepath, GLuint programID
 			GL_RGB,
 			FramebufferName,
 			renderedTexture,
-			string(filepath).c_str(),
+			filesystem::current_path().string(),
 			programID,
 			textureSampler,
 		};
@@ -77,7 +77,7 @@ optional<ImageWindowState> LoadImageFile(const char * filepath, GLuint programID
 
 bool SaveImageFile(const char * filepath, ImageWindowState * image)
 {
-	glBindTexture(GL_TEXTURE_2D, image->texture);
+	glBindTexture(GL_TEXTURE_2D, image->outputTexture);
 
 	auto buffer = new unsigned char [4 * image->height * image->width];
 	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer);

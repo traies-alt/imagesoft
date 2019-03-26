@@ -91,7 +91,7 @@ bool ImageWindow(ImageWindowState &im, GLuint vertexBuffer, GLuint uvbuffer)
 				}
 				if (ImGui::BeginPopup("Save")) {
 					filesystem::path p;
-					char saveFileName[50];
+					static char saveFileName[50];
 					if (SimpleFileNavigation(im.outputPath, p)) {
 							strncpy_s(saveFileName, p.filename().string().c_str(), 50);
 					}

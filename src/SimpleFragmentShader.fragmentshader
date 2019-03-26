@@ -9,8 +9,34 @@ layout(location = 0) out vec3 color;
 // Values that stay constant for the whole mesh.
 uniform sampler2D myTextureSampler;
 
+float rand(vec2 co){
+	return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+}
+
 void main(){
 
-    // Output color = color of the texture at the specified UV
-    color = texture( myTextureSampler, UV ).rgb;
+    // Cargar la textura
+    vec3 c = texture( myTextureSampler, UV ).rgb;
+		// color = c
+		// negativo
+		color.rgb =  vec3(1, 1, 1) - c.rgb;
+		// Ruido sal y pimienta
+		// float num = rand(UV);
+		// if (num > 0.5) {
+		// 	color.rgb = c * vec3(1, 1, 1);
+		// } else {
+		// 	color.rgb = c * vec3(0, 0, 0);
+		// }
+
+		// Escalar
+		// color = c * 0.2;
+
+		// Umbral
+		// if (c.r < 0.5){
+		// 	color = c;
+		// } else {
+		// 	color = vec3(0, 0, 0);
+		// }
+
+
 }
