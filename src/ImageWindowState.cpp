@@ -29,10 +29,8 @@ optional<ImageWindowState> LoadImageFile(const char * filepath)
     glGetTexLevelParameteriv(GL_TEXTURE_2D, miplevel, GL_TEXTURE_WIDTH, &w);
     glGetTexLevelParameteriv(GL_TEXTURE_2D, miplevel, GL_TEXTURE_HEIGHT, &h);
 
-		
-
-		unsigned char * pixels = new unsigned char[w * h * 4];
-		glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);	
+		unsigned char * pixels = new unsigned char[w * h * 3];
+		glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
 		glBindTexture(GL_TEXTURE_2D, 0);
 		auto v = vector<IFilter*>();
 		MainFilter * fil = new MainFilter(w, h);
@@ -98,7 +96,7 @@ optional<ImageWindowState> LoadImageFile(const char * filepath)
 
 // 	if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 // 		cout << "Error rendering to texture." << endl;
-	
+
 // 	glBindTexture(GL_TEXTURE_2D, 0);
 
 // 	unsigned char *b = new unsigned char[buffer.size()];
@@ -144,8 +142,9 @@ bool ReloadImage(ImageWindowState * image) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image->width, image->height, 0, image->colorFormat, GL_UNSIGNED_BYTE, image->data);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image->width, image->height, 0, image->colorFormat, GL_UNSIGNED_BYTE, image->data);
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	return true;
 }
+

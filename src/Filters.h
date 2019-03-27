@@ -1,19 +1,19 @@
-#pragma once 
-#include <glad/glad.h>  
+#pragma once
+#include <glad/glad.h>
 
 void InitVertexBuffer();
 
 /**
  * Every filter does the following:
- * * Initializes the shader.		
+ * * Initializes the shader.
  * * Keeps track of necessary state for each shader.
  * * Render UI controls.
- * 
+ *
  **/
 struct IFilter {
 	int _width;
 	int _height;
-	
+
 	GLuint _programID;
 	GLuint _outputFramebuffer;
 	GLuint _outputTexture;
@@ -24,6 +24,8 @@ struct IFilter {
 
 struct MainFilter: IFilter {
 	GLuint _textureSampler;
+	GLuint _randTex;
+	GLuint _randSampler;
 
 	MainFilter(int w, int h) {
 		_width = w;

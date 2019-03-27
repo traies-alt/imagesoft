@@ -38,7 +38,7 @@ void InitVertexBuffer()
 	glBufferData(GL_ARRAY_BUFFER, sizeof(g_uv_buffer_data), g_uv_buffer_data, GL_STATIC_DRAW);
 }
 
-void DrawTexturedTriangles(GLuint ogTexture, GLuint nextShaderTextureSampler) 
+void DrawTexturedTriangles(GLuint ogTexture, GLuint nextShaderTextureSampler)
 {
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, ogTexture);
@@ -78,7 +78,7 @@ void DrawTexturedTriangles(GLuint ogTexture, GLuint nextShaderTextureSampler)
 }
 
 
-void MainFilter::InitShader() 
+void MainFilter::InitShader()
 {
 	_programID = LoadShaders("./src/SimpleVertexShader.vertexshader", "./src/SimpleFragmentShader.fragmentshader");
 	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
@@ -109,18 +109,24 @@ void MainFilter::InitShader()
 
 	if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
 		std::cout << "Error rendering to texture." << std::endl;
+
+	_randTex = RandomTexture(100, _width, _height);
+	_randSampler = glGetUniformLocation(_programID, "randSampler");
 }
 
-void MainFilter::RenderUI() 
+void MainFilter::RenderUI()
 {
 
 }
 
-GLuint MainFilter::ApplyFilter(GLuint prevTexture) 
+GLuint MainFilter::ApplyFilter(GLuint prevTexture)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
 	glViewport(0,0,_width,_height);
 	glUseProgram(_programID);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, _randTex);
+	glUniform1i(_randSampler, 1);
 	DrawTexturedTriangles(prevTexture, _textureSampler);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 

@@ -41,9 +41,9 @@ bool ImageWindow(ImageWindowState &im, GLuint vertexBuffer, GLuint uvbuffer)
 				GLuint t = im.texture;
 				GLuint ot;
 				for (auto const& filter: im.filters) {
-					// t = *it->ApplyFilter(t);
 					t = filter->ApplyFilter(t);
 				}
+				ImGui::SameLine();
 				ImGui::Image(reinterpret_cast<ImTextureID>(t), ImVec2(im.zoom * im.width, im.zoom * im.height));
 				if (ImGui::Button("Save")) {
 						ImGui::OpenPopup("Save");

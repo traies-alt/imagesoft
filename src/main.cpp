@@ -188,7 +188,7 @@ int main(int, char**)
 		// 	ImGui::InputInt("Raw Height", &rawHeight);
 		// 	filesystem::path p;
 		// 	if (SimpleFileNavigation(path, p)) {
-				
+
 		// 		// imageWindows.push_back(make_unique<ImageWindowState>(i));
 		// 		// showFileSelectRaw = false;
 		// 	}
