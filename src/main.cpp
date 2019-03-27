@@ -219,6 +219,47 @@ int main(int, char**)
 			static int counter = 0;
 			auto title = string("Image Window ").append(to_string(im->id));
 			ImageWindow(*im, vertexbuffer, uvbuffer);
+			ImGui::Begin((string("Filters") + to_string(im->id)).c_str());
+			for (auto it = im->filters.begin(); it != im->filters.end(); ) {
+				auto index = it - im->filters.begin();
+				
+				std::ostringstream treeTitle;
+				treeTitle << std::to_string(index) << " " << (*it)->_name;
+				std::string filterTitle = treeTitle.str();
+				if(ImGui::TreeNode(filterTitle.c_str())) {
+					if (ImGui::Button("Remove filter")) {
+						delete *it;
+						it = im->filters.erase(it);
+					} else {
+						(*it)->RenderUI();
+						it++;
+					}
+					ImGui::TreePop();
+					ImGui::Separator();
+				} else {
+					it++;
+				}
+			};
+			if (ImGui::Button("Add Filter")) {
+				ImGui::OpenPopup("Add Filter");
+			}
+
+			if (ImGui::BeginPopup("Add Filter")) {
+				if (ImGui::Button("Substract")) {
+					IFilter * filter = new SubstractionFilter(im->width, im->height);
+					filter->InitShader();
+					im->filters.push_back(filter);
+					ImGui::CloseCurrentPopup();
+				}
+				if (ImGui::Button("Negative")) {
+					IFilter * filter = new NegativeFilter(im->width, im->height);
+					filter->InitShader();
+					im->filters.push_back(filter);
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::EndPopup();
+			}
+			ImGui::End();
 		}
 
 		// Rendering

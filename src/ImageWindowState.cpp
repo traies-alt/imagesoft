@@ -20,6 +20,7 @@ optional<ImageWindowState> LoadImageFile(const char * filepath)
 		SOIL_FLAG_MIPMAPS
 	);
 	if (tex_2d == 0) {
+		cout << SOIL_last_result() << endl;
 		return nullopt;
 	} else {
 		glBindTexture(GL_TEXTURE_2D, tex_2d);
@@ -33,7 +34,7 @@ optional<ImageWindowState> LoadImageFile(const char * filepath)
 		glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
 		glBindTexture(GL_TEXTURE_2D, 0);
 		auto v = vector<IFilter*>();
-		MainFilter * fil = new MainFilter(w, h);
+		IFilter * fil = new MainFilter(w, h);
 		fil->InitShader();
 		v.push_back(fil);
 

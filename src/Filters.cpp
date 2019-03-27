@@ -1,6 +1,6 @@
 #include "Filters.h"
 #include <iostream>
-
+#include <imgui.h>
 #include "ShaderLayer.h"
 
 static GLuint vertexbuffer;
@@ -80,38 +80,13 @@ void DrawTexturedTriangles(GLuint ogTexture, GLuint nextShaderTextureSampler)
 
 void MainFilter::InitShader()
 {
-	_programID = LoadShaders("./src/SimpleVertexShader.vertexshader", "./src/SimpleFragmentShader.fragmentshader");
+	_programID = LoadShaders("./src/Passthrough.vert", "./src/SimpleFragmentShader.fragmentshader");
 	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
 
-	// The framebuffer, which regroups 0, 1, or more textures, and 0 or 1 depth buffer.
-	glGenFramebuffers(1, &_outputFramebuffer);
-	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
-
-	// The texture we're going to render to
-	glGenTextures(1, &_outputTexture);
-
-	// "Bind" the newly created texture : all future texture functions will modify this texture
-	glBindTexture(GL_TEXTURE_2D, _outputTexture);
-
-	// Give an empty image to OpenGL ( the last "0" )
-	glTexImage2D(GL_TEXTURE_2D, 0,GL_RGB, _width, _height, 0,GL_RGB, GL_UNSIGNED_BYTE, 0);
-
-	// Poor filtering. Needed !
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-
-	// Set "renderedTexture" as our colour attachement #0
-	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, _outputTexture, 0);
-
-	// Set the list of draw buffers.
-	GLenum DrawBuffers[] = {GL_COLOR_ATTACHMENT0};
-	glDrawBuffers(1, DrawBuffers); // "1" is the size of DrawBuffers
-
-	if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
 		std::cout << "Error rendering to texture." << std::endl;
-
-	_randTex = RandomTexture(100, _width, _height);
-	_randSampler = glGetUniformLocation(_programID, "randSampler");
+		return;
+	}
 }
 
 void MainFilter::RenderUI()
@@ -124,11 +99,71 @@ GLuint MainFilter::ApplyFilter(GLuint prevTexture)
 	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
 	glViewport(0,0,_width,_height);
 	glUseProgram(_programID);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, _randTex);
-	glUniform1i(_randSampler, 1);
 	DrawTexturedTriangles(prevTexture, _textureSampler);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	return _outputTexture;
 }
+
+
+void SubstractionFilter::InitShader()
+{
+	_programID = LoadShaders("./src/Passthrough.vert", "./src/Substract.frag");
+	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
+	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+	_secondTex = RandomTexture(100, _width, _height);
+	_secondSampler = glGetUniformLocation(_programID, "secondSampler");
+	_factor = glGetUniformLocation(_programID, "factor");
+	_subtract = false;
+}
+
+void SubstractionFilter::RenderUI()
+{
+	ImGui::Checkbox("Subtract", &_subtract);
+}
+
+GLuint SubstractionFilter::ApplyFilter(GLuint prevTexture)
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
+	glViewport(0,0,_width,_height);
+	glUseProgram(_programID);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, _secondTex);
+	glUniform1i(_secondSampler, 1);
+
+	glUniform1i(_factor, _subtract ? -1 : 1);
+	DrawTexturedTriangles(prevTexture, _textureSampler);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	return _outputTexture;
+}
+
+void NegativeFilter::InitShader()
+{
+	_programID = LoadShaders("./src/Passthrough.vert", "./src/Negative.frag");
+	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
+	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+}
+
+void NegativeFilter::RenderUI()
+{
+}
+
+GLuint NegativeFilter::ApplyFilter(GLuint prevTexture)
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
+	glViewport(0,0,_width,_height);
+	glUseProgram(_programID);
+	DrawTexturedTriangles(prevTexture, _textureSampler);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	return _outputTexture;
+}
+
+

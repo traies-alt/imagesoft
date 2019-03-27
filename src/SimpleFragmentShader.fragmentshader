@@ -4,20 +4,11 @@ in vec2 UV;
 layout(location = 0) out vec3 color;
 
 uniform sampler2D myTextureSampler;
-uniform sampler2D randSampler;
 
 void main(){
 
 	// Cargar la textura
-	vec3 c = texture( myTextureSampler, UV ).rgb;
-	vec3 r = texture( randSampler, UV ).rgb;
-	if (r.r < 0.5) {
-		color = r;
-	} else {
-		color = c;
-	}
-	// negativo
-	// color.rgb =  vec3(1, 1, 1) - r.rgb;
+	color = texture( myTextureSampler, UV ).rgb;
 	// Ruido sal y pimienta
 	// float num = rand(UV);
 	// if (num > 0.5) {
