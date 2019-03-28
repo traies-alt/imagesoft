@@ -3,6 +3,7 @@
 #include "imgui.h"
 #include <stdlib.h>
 #include <glad/glad.h>
+#include "ShaderLayer.h"
 
 using namespace std;
 
@@ -45,6 +46,13 @@ bool ImageWindow(ImageWindowState &im, GLuint vertexBuffer, GLuint uvbuffer)
 			}
 			ImGui::SameLine();
 			ImGui::Image(reinterpret_cast<ImTextureID>(t), ImVec2(im.zoom * im.width, im.zoom * im.height));
+			
+			ImGui::Begin(string("Histogram").append(to_string(im.id)).c_str());
+			float hist[256] = { 0 };
+			int maxVal = GetHistogram(t, im.width, im.height, 0, hist);
+			ImGui::PlotHistogram("Histogram", hist, 256, 0, NULL, 0.0f, maxVal, ImVec2(0,200));
+			ImGui::End();
+
 			if (ImGui::Button("Save")) {
 					ImGui::OpenPopup("Save");
 			}

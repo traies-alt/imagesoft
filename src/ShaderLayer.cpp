@@ -98,8 +98,8 @@ GLuint RandomTexture(size_t seed, int width, int height)
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_2D, texture);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
@@ -132,8 +132,8 @@ bool InitOutputTexture(int w, int h, GLuint& oFrameBuffer, GLuint& oTexture)
 	glTexImage2D(GL_TEXTURE_2D, 0,GL_RGB, w, h, 0,GL_RGB, GL_UNSIGNED_BYTE, 0);
 
 	// Poor filtering. Needed !
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
 	// Set "renderedTexture" as our colour attachement #0
 	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, oTexture, 0);
@@ -142,4 +142,62 @@ bool InitOutputTexture(int w, int h, GLuint& oFrameBuffer, GLuint& oTexture)
 	GLenum DrawBuffers[] = {GL_COLOR_ATTACHMENT0};
 	glDrawBuffers(1, DrawBuffers); // "1" is the size of DrawBuffers
 	return glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+}
+
+void GetMinMaxRGB(GLuint texture, int w, int h, unsigned char& minr, unsigned char& ming, unsigned char& minb, unsigned char& maxr, unsigned char& maxg, unsigned char& maxb)
+{
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	unsigned char * pixels = new unsigned char[w * h * 3];
+	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+	minr = 256; maxr = 0;
+	ming = 256; maxg = 0;
+	minb = 256; maxb = 0;
+	for (int i = 0; i < w; i++)
+		for (int j = 0; j < h; j++) {
+			unsigned char r = pixels[(i + j * h) * 3];
+			minr = r < minr ? r : minr;
+			maxr = r > maxr ? r : maxr;
+			unsigned char g = pixels[(i + j * h) * 3 + 1];
+			ming = g < ming ? g : ming;
+			maxg = g > maxg ? g : maxg;
+			unsigned char b = pixels[(i + j * h) * 3 + 2];
+			minb = b < minb ? b : minb;
+			maxb = b > maxb ? b : maxb;
+		}
+
+	delete[] pixels;
+};
+
+int GetHistogram(GLuint texture, int w, int h, int band, float * hist)
+{
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	unsigned char * pixels = new unsigned char[w * h * 3];
+	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+	int max = 0;
+	for (int i = 0; i < w; i++)
+		for (int j = 0; j < h; j++) {
+			if (++hist[pixels[(i + j * h) * 3 + band]] > max ) {
+				max = hist[pixels[(i + j * h) * 3 + band]];
+			}
+		}
+	delete[] pixels;
+	return max;
+}
+
+void GetHistogramAll(GLuint texture, int w, int h, float * hr, float * hg, float * hb)
+{
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	unsigned char * pixels = new unsigned char[w * h * 3];
+	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+	for (int i = 0; i < w; i++)
+		for (int j = 0; j < h; j++) {
+			++hr[pixels[(i + j * h) * 3]];
+			++hg[pixels[(i + j * h) * 3 + 1]];
+			++hb[pixels[(i + j * h) * 3 + 2]];
+		}
+	delete[] pixels;
+	return;
 }

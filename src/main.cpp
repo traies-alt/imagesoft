@@ -257,6 +257,54 @@ int main(int, char**)
 					im->filters.push_back(filter);
 					ImGui::CloseCurrentPopup();
 				}
+				if (ImGui::Button("Scalar")) {
+					IFilter * filter = new ScalarFilter(im->width, im->height);
+					filter->InitShader();
+					im->filters.push_back(filter);
+					ImGui::CloseCurrentPopup();
+				}
+				if (ImGui::Button("DynamicRangeCompression")) {
+					IFilter * filter = new DynamicRangeCompressionFilter(im->width, im->height);
+					filter->InitShader();
+					im->filters.push_back(filter);
+					ImGui::CloseCurrentPopup();
+				}
+				if (ImGui::Button("Threshold")) {
+					IFilter * filter = new ThresholdFilter(im->width, im->height);
+					filter->InitShader();
+					im->filters.push_back(filter);
+					ImGui::CloseCurrentPopup();
+				}
+				if (ImGui::Button("Contrast")) {
+					IFilter * filter = new ContrastFilter(im->width, im->height);
+					filter->InitShader();
+					im->filters.push_back(filter);
+					ImGui::CloseCurrentPopup();
+				}
+				if (ImGui::Button("Equalization")) {
+					IFilter * filter = new EqualizationFilter(im->width, im->height);
+					filter->InitShader();
+					im->filters.push_back(filter);
+					ImGui::CloseCurrentPopup();
+				}
+				if (ImGui::Button("Exponential Noise")) {
+					IFilter * filter = new ExponentialNoiseFilter(im->width, im->height);
+					filter->InitShader();
+					im->filters.push_back(filter);
+					ImGui::CloseCurrentPopup();
+				}
+				if (ImGui::Button("Rayleigh Noise")) {
+					IFilter * filter = new RayleighNoiseFilter(im->width, im->height);
+					filter->InitShader();
+					im->filters.push_back(filter);
+					ImGui::CloseCurrentPopup();
+				}
+				if (ImGui::Button("Gaussian Noise")) {
+					IFilter * filter = new GaussianNoiseFilter(im->width, im->height);
+					filter->InitShader();
+					im->filters.push_back(filter);
+					ImGui::CloseCurrentPopup();
+				}
 				ImGui::EndPopup();
 			}
 			ImGui::End();

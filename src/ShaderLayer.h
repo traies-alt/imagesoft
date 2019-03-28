@@ -4,3 +4,6 @@
 GLuint LoadShaders(const char * vertex_file_path,const char * fragment_file_path);
 GLuint RandomTexture(size_t seed, int width, int height);
 bool InitOutputTexture(int w, int h, GLuint& oFrameBuffer, GLuint& oTexture);
+void GetMinMaxRGB(GLuint texture, int w, int h, unsigned char& minr, unsigned char& ming, unsigned char& minb, unsigned char& maxr, unsigned char& maxg, unsigned char& maxb);
+int GetHistogram(GLuint texture, int w, int h, int band, float * hist);
+void GetHistogramAll(GLuint texture, int w, int h, float * hr, float * hg, float * hb);
