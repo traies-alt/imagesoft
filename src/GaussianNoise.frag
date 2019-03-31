@@ -12,12 +12,11 @@ uniform float mu;
 
 void main() {
 	vec3 pixel = texture( myTextureSampler, UV ).rgb;
-	vec3 randomP = texture(randomSampler, UV).rgb;
-	vec3 randomP2 = texture(randomSampler2, UV).rgb;
+	vec3 x1 = texture(randomSampler, UV).rgb;
+	vec3 x2 = texture(randomSampler2, UV).rgb;
 
-	vec3 y1 = sqrt(-2*log(randomP)) * cos(2 * M_PI * randomP2);
-	vec3 y2 = sqrt(-2*log(randomP)) * sin(2 * M_PI * randomP2);
-	
-	float fact = 1 / sqrt(2 * M_PI);
-	color = 0.5 + fact * exp(-y1 * y1 / 2) * exp(-y2 * y2 / 2); 
+	vec3 y1 = sqrt(-2*log(x1)) * cos(2 * M_PI * x2);
+	// vec3 y2 = sqrt(-2*log(x1)) * sin(2 * M_PI * x2);
+
+	color = sqrt(sigma) * y1 + mu + 0.5;
 }

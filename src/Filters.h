@@ -182,7 +182,7 @@ struct RayleighNoiseFilter: IFilter {
 	GLuint _randomSampler;
 	GLuint _glXi;
 	int _seed = 0;
-	float _xi = 2;
+	float _xi = 0.1;
 	RayleighNoiseFilter(int w, int h) {
 		_width = w;
 		_height = h;

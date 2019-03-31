@@ -171,7 +171,6 @@ int main(int, char**)
 				auto imOpt = LoadImageFile(p.string().c_str());
 				if (imOpt.has_value()) {
 					auto val = imOpt.value();
-					val.id = imageID++;
 					imageWindows.push_back(make_unique<ImageWindowState>(val));
 					showFileSelect = false;
 				} else {
@@ -181,19 +180,24 @@ int main(int, char**)
 			ImGui::End();
 		}
 
-		// if (showFileSelectRaw) {
-		// 	ImGui::Begin("Chose File Raw");
-		// 	static int rawWidth, rawHeight;
-		// 	ImGui::InputInt("Raw Width", &rawWidth);
-		// 	ImGui::InputInt("Raw Height", &rawHeight);
-		// 	filesystem::path p;
-		// 	if (SimpleFileNavigation(path, p)) {
-
-		// 		// imageWindows.push_back(make_unique<ImageWindowState>(i));
-		// 		// showFileSelectRaw = false;
-		// 	}
-		// 	ImGui::End();
-		// }
+		if (showFileSelectRaw) {
+			ImGui::Begin("Chose File Raw");
+			static int rawWidth, rawHeight;
+			ImGui::InputInt("Raw Width", &rawWidth);
+			ImGui::InputInt("Raw Height", &rawHeight);
+			filesystem::path p;
+			if (SimpleFileNavigation(path, p)) {
+				auto imOpt = LoadImageFileRaw(p.string().c_str(), rawWidth, rawHeight);
+				if (imOpt.has_value()) {
+					auto val = imOpt.value();
+					imageWindows.push_back(make_unique<ImageWindowState>(val));
+					showFileSelect = false;
+				} else {
+					showFileSelectError = true;
+				}
+			}
+			ImGui::End();
+		}
 		if (ImGui::BeginMainMenuBar())
 		{
 			if (ImGui::BeginMenu("File"))
@@ -222,7 +226,7 @@ int main(int, char**)
 			ImGui::Begin((string("Filters") + to_string(im->id)).c_str());
 			for (auto it = im->filters.begin(); it != im->filters.end(); ) {
 				auto index = it - im->filters.begin();
-				
+
 				std::ostringstream treeTitle;
 				treeTitle << std::to_string(index) << " " << (*it)->_name;
 				std::string filterTitle = treeTitle.str();

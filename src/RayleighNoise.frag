@@ -10,5 +10,5 @@ void main() {
 	vec3 pixel = texture( myTextureSampler, UV ).rgb;
 	vec3 randomP = texture(randomSampler, UV).rgb;
 
-	color = pixel * xi * sqrt(-2*log(1-randomP)); 
+	color = pixel * xi * sqrt(-2.0*log(1.0-randomP));
 }

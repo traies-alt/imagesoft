@@ -46,11 +46,19 @@ bool ImageWindow(ImageWindowState &im, GLuint vertexBuffer, GLuint uvbuffer)
 			}
 			ImGui::SameLine();
 			ImGui::Image(reinterpret_cast<ImTextureID>(t), ImVec2(im.zoom * im.width, im.zoom * im.height));
-			
+
 			ImGui::Begin(string("Histogram").append(to_string(im.id)).c_str());
 			float hist[256] = { 0 };
-			int maxVal = GetHistogram(t, im.width, im.height, 0, hist);
+			int maxVal = GetHistogram(t, im.width, im.height, im.histogramBand, hist);
 			ImGui::PlotHistogram("Histogram", hist, 256, 0, NULL, 0.0f, maxVal, ImVec2(0,200));
+			if (ImGui::Selectable("RED", im.histogramBand == 0)) {
+				im.histogramBand = 0;
+			} else if (ImGui::Selectable("GREEN", im.histogramBand == 1)) {
+				im.histogramBand = 1;
+			} else if (ImGui::Selectable("BLUE", im.histogramBand == 2)) {
+				im.histogramBand = 2;
+			}
+
 			ImGui::End();
 
 			if (ImGui::Button("Save")) {
@@ -75,10 +83,10 @@ bool ImageWindow(ImageWindowState &im, GLuint vertexBuffer, GLuint uvbuffer)
 			ImGui::InputInt("Width", &im.width);
 			ImGui::InputInt("Height", &im.height);
 			if (ImGui::Button("Reload Image")) {
-					ReloadImage(&im);
+				ReloadImage(&im);
 			}
-				if (ImGui::Button("Color Format"))
-					ImGui::OpenPopup("Color Format");
+			if (ImGui::Button("Color Format"))
+				ImGui::OpenPopup("Color Format");
 			ImGui::Text("Color Format: %d", im.colorFormat);
 			if (ImGui::BeginPopup("Color Format")) {
 					if (ImGui::Selectable("GL_RED")) {
