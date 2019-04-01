@@ -91,16 +91,49 @@ void MainFilter::InitShader()
 	}
 }
 
-void MainFilter::RenderUI()
-{
-
-}
+void MainFilter::RenderUI(){}
 
 GLuint MainFilter::ApplyFilter(GLuint prevTexture)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
 	glViewport(0,0,_width,_height);
 	glUseProgram(_programID);
+	DrawTexturedTriangles(prevTexture, _textureSampler);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	return _outputTexture;
+}
+
+void SingleBandFilter::InitShader()
+{
+	_programID = LoadShaders("./src/Passthrough.vert", "./src/SingleBand.frag");
+	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
+
+	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+	_glBand = glGetUniformLocation(_programID, "band");
+}
+
+void SingleBandFilter::RenderUI(){
+	if(ImGui::Selectable("Greyscale", _band == 0)) {
+		_band = 0;
+	} else if (ImGui::Selectable("Red", _band == 1)) {
+		_band = 1;
+	} else if (ImGui::Selectable("Green", _band == 2)) {
+		_band = 2;
+	} else if (ImGui::Selectable("Blue", _band == 3)) {
+		_band = 3;
+	}
+}
+
+GLuint SingleBandFilter::ApplyFilter(GLuint prevTexture)
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
+	glViewport(0,0,_width,_height);
+	glUseProgram(_programID);
+	glUniform1i(_glBand, _band);
 	DrawTexturedTriangles(prevTexture, _textureSampler);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -116,10 +149,17 @@ void SubstractionFilter::InitShader()
 		std::cout << "Error rendering to texture." << std::endl;
 		return;
 	}
-	_secondTex = RandomTexture(100, _width, _height);
+	GLuint textures[1];
+	glGenTextures(1, textures);
+	_secondTex = RandomTexture(100, _width, _height, textures[1]);
 	_secondSampler = glGetUniformLocation(_programID, "secondSampler");
 	_subtract = false;
 	_factor = glGetUniformLocation(_programID, "factor");
+	
+	_glMin = glGetUniformLocation(_programID, "min");
+	glUniform3f(_glMin, _min[0], _min[1], _min[2]);
+	_glMax = glGetUniformLocation(_programID, "max");
+	glUniform3f(_glMax, _max[0], _max[1], _max[2]);
 }
 
 void SubstractionFilter::RenderUI()
@@ -148,6 +188,14 @@ void SubstractionFilter::RenderUI()
 		}
 		ImGui::EndPopup();
 	}
+	if (ImGui::Button("Linear fitting")) {
+		GetMinMaxForSum(_textureSampler, _secondSampler, _width, _height, _min, _max);
+		glUseProgram(_programID);
+		glUniform3f(_glMin, _min[0], _min[1], _min[2]);
+		glUseProgram(_programID);
+		glUniform3f(_glMax, _max[0], _max[1], _max[2]);			
+	}
+	ImGui::Text("Min: %f %f %f, Max: %f %f %f", _min[0], _min[1], _min[2], _max[0], _max[1], _max[2]);
 }
 
 GLuint SubstractionFilter::ApplyFilter(GLuint prevTexture)
@@ -372,11 +420,18 @@ static void Eq(float * h, unsigned char * ha, int total)
 
 void EqualizationFilter::RenderUI()
 {
+	if (ImGui::Button("Equalize")) {
+		_eqCalcTexture = true;
+	}
 }
 
 GLuint EqualizationFilter::ApplyFilter(GLuint prevTexture)
 {
-	{
+	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
+	glViewport(0,0,_width,_height);
+	glUseProgram(_programID);
+	
+	if (_eqCalcTexture){
 		float hr[256] = { 0 }, hg[256] = { 0 }, hb[256] = { 0 } ;
 		unsigned char har[256], hag[256], hab[256] ;
 
@@ -390,18 +445,18 @@ GLuint EqualizationFilter::ApplyFilter(GLuint prevTexture)
 			pixels[i * 3 + 1] = hag[i];
 			pixels[i * 3 + 2] = hab[i];
 		}
+		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_1D, _eqTexture);
-
 		glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 		glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 		glTexImage1D(GL_TEXTURE_1D, 0, GL_RGB ,256, NULL, GL_RGB, GL_UNSIGNED_BYTE, pixels);
-		glBindTexture(GL_TEXTURE_1D, 0);
-	}	
-	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
-	glViewport(0,0,_width,_height);
-	glUseProgram(_programID);
+		_eqCalcTexture = false;
+	}
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_1D, _eqTexture);
+	glUniform1i(_eqSampler, 1);
 	DrawTexturedTriangles(prevTexture, _textureSampler);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -417,24 +472,33 @@ void ExponentialNoiseFilter::InitShader()
 		return;
 	}
 	_randomSampler = glGetUniformLocation(_programID, "randomSampler");
-	_randomTex = RandomTexture(_seed, _width, _height);
+	GLuint textures[1];
+	glGenTextures(1, textures);
+	_randomTex = RandomTexture(_seed, _width, _height, textures[1]);
 	_glLambda = glGetUniformLocation(_programID, "lambda");
+	_glContamination = glGetUniformLocation(_programID, "contamination");
 	glUseProgram(_programID);
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, _randomTex);
 	glUniform1i(_randomSampler, 1);
 	glUniform1f(_glLambda, _lambda);
+	glUniform1f(_glContamination, _glContamination);
 }
 
 void ExponentialNoiseFilter::RenderUI()
 {
-	if(ImGui::InputInt("Seed", &_seed)) {
-		_randomTex = RandomTexture(_seed, _width, _height);
+	if(ImGui::InputInt("Seed", &_seed, 1, 10, 1)) {
+		_randomTex = RandomTexture(_seed, _width, _height, _randomTex);
 	}
-	if(ImGui::InputFloat("Lambda", &_lambda)) {
+	if(ImGui::InputFloat("Lambda", &_lambda, 0.01f, 0.1f, 2)) {
 		glUseProgram(_programID);
 		glUniform1f(_glLambda, _lambda);
 	}
+	if(ImGui::InputFloat("contamination", &_contamination, 0.01f, 0.1f, 2)) {
+		glUseProgram(_programID);
+		glUniform1f(_glContamination, _contamination);
+	}
+
 }
 
 GLuint ExponentialNoiseFilter::ApplyFilter(GLuint prevTexture)
@@ -460,23 +524,31 @@ void RayleighNoiseFilter::InitShader()
 		return;
 	}
 	_randomSampler = glGetUniformLocation(_programID, "randomSampler");
-	_randomTex = RandomTexture(_seed, _width, _height);
+	_glContamination = glGetUniformLocation(_programID, "contamination");
+	GLuint textures[1];
+	glGenTextures(1, textures);
+	_randomTex = RandomTexture(_seed, _width, _height, textures[1]);
 	_glXi = glGetUniformLocation(_programID, "xi");
 	glUseProgram(_programID);
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, _randomTex);
 	glUniform1i(_randomSampler, 1);
 	glUniform1f(_glXi, _xi);
+	glUniform1f(_glContamination, _contamination);
 }
 
 void RayleighNoiseFilter::RenderUI()
 {
-	if(ImGui::InputInt("Seed", &_seed)) {
-		_randomTex = RandomTexture(_seed, _width, _height);
+	if(ImGui::InputInt("Seed", &_seed, 1, 10, 1)) {
+		_randomTex = RandomTexture(_seed, _width, _height, _randomTex);
 	}
-	if(ImGui::InputFloat("Xi", &_xi)) {
+	if(ImGui::InputFloat("Xi", &_xi, 0.01f, 0.1f, 2)) {
 		glUseProgram(_programID);
 		glUniform1f(_glXi, _xi);
+	}
+	if(ImGui::InputFloat("Contamination", &_contamination, 0.01f, 0.1f,2)) {
+		glUseProgram(_programID);
+		glUniform1f(_glContamination, _contamination);
 	}
 }
 
@@ -503,37 +575,50 @@ void GaussianNoiseFilter::InitShader()
 		return;
 	}
 	_randomSampler = glGetUniformLocation(_programID, "randomSampler");
-	_randomTex = RandomTexture(_seed, _width, _height);
 	_randomSampler2 = glGetUniformLocation(_programID, "randomSampler2");
-	_randomTex2 = RandomTexture(_seed2, _width, _height);
+	
+	GLuint textures[2];
+	glGenTextures(2, textures);
+	_randomTex = RandomTexture(_seed[0], _width, _height, textures[0]);
+	_randomTex2 = RandomTexture(_seed[1], _width, _height, textures[1]);
+	
 	_glSigma = glGetUniformLocation(_programID, "sigma");
 	_glMu = glGetUniformLocation(_programID, "mu");
+	_glContamination = glGetUniformLocation(_programID, "contamination");
 	glUseProgram(_programID);
 	
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, _randomTex);
-	glUniform1i(_randomSampler, 1);
 
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, _randomTex2);
+
+
+	glUniform1i(_randomSampler, 1);
 	glUniform1i(_randomSampler2, 2);
 
 	glUniform1f(_glSigma, _sigma) ;
 	glUniform1f(_glMu, _mu) ;
+	glUniform1f(_glContamination, _contamination) ;
 }
 
 void GaussianNoiseFilter::RenderUI()
 {
-	if(ImGui::InputInt("Seed", &_seed)) {
-		_randomTex = RandomTexture(_seed, _width, _height);
+	if(ImGui::InputInt2("Seed", _seed)) {
+		_randomTex = RandomTexture(_seed[0], _width, _height, _randomTex);
+		_randomTex2 = RandomTexture(_seed[1], _width, _height, _randomTex2);
 	}
-	if(ImGui::InputFloat("Sigma", &_sigma)) {
+	if(ImGui::InputFloat("Sigma", &_sigma, 0.01f, 0.1f, 2)) {
 		glUseProgram(_programID);
 		glUniform1f(_glSigma, _sigma);
 	}
-	if(ImGui::InputFloat("Mu", &_mu)) {
+	if(ImGui::InputFloat("Mu", &_mu, 0.01f, 0.1f, 2)) {
 		glUseProgram(_programID);
 		glUniform1f(_glMu, _mu);
+	}
+	if(ImGui::InputFloat("Contamination", &_contamination, 0.01f, 0.1f, 2 )) {
+		glUseProgram(_programID);
+		glUniform1f(_glContamination, _contamination);
 	}
 }
 
@@ -550,6 +635,64 @@ GLuint GaussianNoiseFilter::ApplyFilter(GLuint prevTexture)
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, _randomTex2);
 	glUniform1i(_randomSampler2, 2);
+
+	DrawTexturedTriangles(prevTexture, _textureSampler);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	return _outputTexture;
+}
+
+void SaltAndPepperNoiseFilter::InitShader()
+{
+	_programID = LoadShaders("./src/Passthrough.vert", "./src/SaltAndPepperNoise.frag");
+	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
+	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+	_randomSampler = glGetUniformLocation(_programID, "randomSampler");
+	GLuint textures[1];
+	glGenTextures(1, textures);
+	_randomTex = RandomTexture(_seed, _width, _height, textures[0]);
+	
+	_glContamination1 = glGetUniformLocation(_programID, "contamination1");
+	_glContamination2 = glGetUniformLocation(_programID, "contamination2");
+
+	glUseProgram(_programID);
+	
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, _randomTex);
+	glUniform1i(_randomSampler, 1);
+
+	glUniform1f(_glContamination1, _contamination1) ;
+	glUniform1f(_glContamination2, _contamination2) ;
+}
+
+void SaltAndPepperNoiseFilter::RenderUI()
+{
+	if(ImGui::InputInt("Seed", &_seed)) {
+		_randomTex = RandomTexture(_seed, _width, _height, _randomTex);
+	}
+	if(ImGui::InputFloat("P1", &_contamination1, 0.01f, 0.1f, 2)) {
+		glUseProgram(_programID);
+		glUniform1f(_glContamination1, _contamination1);
+	}
+
+	if(ImGui::InputFloat("P2", &_contamination2, 0.01f, 0.1f, 2)) {
+		glUseProgram(_programID);
+		glUniform1f(_glContamination2, _contamination2);
+	}
+}
+
+GLuint SaltAndPepperNoiseFilter::ApplyFilter(GLuint prevTexture)
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
+	glViewport(0,0,_width,_height);
+	glUseProgram(_programID);
+	
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, _randomTex);
+	glUniform1i(_randomSampler, 1);
 
 	DrawTexturedTriangles(prevTexture, _textureSampler);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);

@@ -31,6 +31,17 @@ bool SimpleFileNavigation(string &path, filesystem::path &outFile)
     return false;
 }
 
+float HistMaxValue(float * hist, int from, int to)
+{
+	float max = 0;
+	for (int i = from; i < to; i++) {
+		if (max < hist[i]) {
+			max = hist[i];
+		}
+	}
+	return max;
+}
+
 bool ImageWindow(ImageWindowState &im, GLuint vertexBuffer, GLuint uvbuffer)
 {
 	auto title = string("Image Window ").append(to_string(im.id));
@@ -48,17 +59,25 @@ bool ImageWindow(ImageWindowState &im, GLuint vertexBuffer, GLuint uvbuffer)
 			ImGui::Image(reinterpret_cast<ImTextureID>(t), ImVec2(im.zoom * im.width, im.zoom * im.height));
 
 			ImGui::Begin(string("Histogram").append(to_string(im.id)).c_str());
-			float hist[256] = { 0 };
-			int maxVal = GetHistogram(t, im.width, im.height, im.histogramBand, hist);
-			ImGui::PlotHistogram("Histogram", hist, 256, 0, NULL, 0.0f, maxVal, ImVec2(0,200));
+			
+			ImGui::SliderInt2("Histogram Bounds", &im._histStart, 0, 256);
+			im._histStart = clamp(im._histStart, 0, im._histEnd);
+			im._histEnd = clamp(im._histEnd, im._histStart, 256);
+			float scale = HistMaxValue(im._hist, im._histStart, im._histEnd);
+			ImGui::PlotHistogram("Histogram", im._hist + im._histStart, im._histEnd - im._histStart, 0, NULL, 0, scale , ImVec2(0,200));
 			if (ImGui::Selectable("RED", im.histogramBand == 0)) {
 				im.histogramBand = 0;
 			} else if (ImGui::Selectable("GREEN", im.histogramBand == 1)) {
 				im.histogramBand = 1;
 			} else if (ImGui::Selectable("BLUE", im.histogramBand == 2)) {
 				im.histogramBand = 2;
+			} else if (ImGui::Selectable("LUMINOSITY", im.histogramBand == 3)) {
+				im.histogramBand = 3;
 			}
-
+			// if (ImGui::Button("Plot histogram") ) {
+				memset(im._hist, 0, sizeof(im._hist));
+				im._maxVal = GetHistogram(t, im.width, im.height, im.histogramBand, im._hist);
+			// }
 			ImGui::End();
 
 			if (ImGui::Button("Save")) {
@@ -105,8 +124,8 @@ bool ImageWindow(ImageWindowState &im, GLuint vertexBuffer, GLuint uvbuffer)
 							im.colorFormat = GL_LUMINANCE;
 							ImGui::CloseCurrentPopup();
 					}
-					if (ImGui::Selectable("GL_RGBA")) {
-							im.colorFormat = GL_RGBA;
+					if (ImGui::Selectable("GL_RGB")) {
+							im.colorFormat = GL_RGB;
 							ImGui::CloseCurrentPopup();
 					}
 					ImGui::EndPopup();

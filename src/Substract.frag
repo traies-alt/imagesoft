@@ -6,8 +6,10 @@ layout(location = 0) out vec3 color;
 uniform sampler2D myTextureSampler;
 uniform sampler2D secondSampler;
 uniform int factor;
+uniform vec3 min;
+uniform vec3 max;
 void main()
 {
 	// color = clamp(texture( myTextureSampler, UV ).rgb - texture( secondSampler, UV ).rgb, vec3(0, 0, 0), vec3(1, 1, 1))
-	color = texture(myTextureSampler, UV).rgb + factor * texture(secondSampler, UV).rgb;
+	color = (texture(myTextureSampler, UV).rgb + factor * texture(secondSampler, UV).rgb - min) / (max - min);
 }

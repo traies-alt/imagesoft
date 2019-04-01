@@ -18,6 +18,9 @@ struct ImageWindowState {
 	std::string outputPath;
 	std::vector<IFilter*> filters;
 	int histogramBand = 0;
+	float _hist[256] = {0};
+	int _maxVal = 255;
+	int _histStart = 0, _histEnd = 256;
 };
 
 std::optional<ImageWindowState> LoadImageFile(const char * filepath);

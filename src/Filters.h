@@ -38,13 +38,30 @@ struct MainFilter: IFilter {
 	GLuint ApplyFilter(GLuint prevTexture) override;
 };
 
+struct SingleBandFilter: IFilter {
+	GLuint _textureSampler;
+	GLuint _glBand;
+	int _band = 0;
+
+	SingleBandFilter(int w, int h) {
+		_width = w;
+		_height = h;
+		_name = "SingleBand";
+	}
+
+	void InitShader() override;
+	void RenderUI() override;
+	GLuint ApplyFilter(GLuint prevTexture) override;
+};
+
 struct SubstractionFilter: IFilter {
 	GLuint _textureSampler;
 	GLuint _secondTex;
 	GLuint _secondSampler;
 	GLuint _factor;
+	GLuint _glMin, _glMax;
 	bool _subtract;
-
+	float _min[3] = {0}, _max[3] = {1, 1, 1};
 	std::string _path;
 	
 	SubstractionFilter(int w, int h) {
@@ -146,6 +163,7 @@ struct EqualizationFilter: IFilter {
 	GLuint _textureSampler;
 	GLuint _eqSampler;
 	GLuint _eqTexture;
+	bool _eqCalcTexture = true;
 
 	EqualizationFilter(int w, int h) {
 		_width = w;
@@ -163,8 +181,10 @@ struct ExponentialNoiseFilter: IFilter {
 	GLuint _randomTex;
 	GLuint _randomSampler;
 	GLuint _glLambda;
+	GLuint _glContamination;
 	int _seed = 0;
 	float _lambda = 2;
+	float _contamination = 0.1;
 	ExponentialNoiseFilter(int w, int h) {
 		_width = w;
 		_height = h;
@@ -181,8 +201,10 @@ struct RayleighNoiseFilter: IFilter {
 	GLuint _randomTex;
 	GLuint _randomSampler;
 	GLuint _glXi;
+	GLuint _glContamination;
 	int _seed = 0;
 	float _xi = 0.1;
+	float _contamination = 0.1;
 	RayleighNoiseFilter(int w, int h) {
 		_width = w;
 		_height = h;
@@ -202,14 +224,36 @@ struct GaussianNoiseFilter: IFilter {
 	GLuint _randomSampler2;
 	GLuint _glSigma;
 	GLuint _glMu;
-	int _seed = 0;
-	int _seed2 = 100;
+	GLuint _glContamination;
+	float _contamination = 0.1;
+	int _seed[2] = {0, 100};
 	float _sigma = 1;
 	float _mu = 0;
 	GaussianNoiseFilter(int w, int h) {
 		_width = w;
 		_height = h;
 		_name = "Gaussian Noise Filter";
+	}
+
+	void InitShader() override;
+	void RenderUI() override;
+	GLuint ApplyFilter(GLuint prevTexture) override;
+};
+
+struct SaltAndPepperNoiseFilter: IFilter {
+	GLuint _textureSampler;
+	GLuint _randomTex;
+	GLuint _randomSampler;
+	GLuint _glContamination1;
+	GLuint _glContamination2;
+
+	float _contamination1 = 0.01, _contamination2 = 0.09;
+	int _seed = 0;
+	
+	SaltAndPepperNoiseFilter(int w, int h) {
+		_width = w;
+		_height = h;
+		_name = "Salt And Pepper Noise Filter";
 	}
 
 	void InitShader() override;

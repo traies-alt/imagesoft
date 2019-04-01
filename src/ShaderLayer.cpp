@@ -92,10 +92,9 @@ GLuint LoadShaders(const char * vertex_file_path,const char * fragment_file_path
 	return ProgramID;
 }
 
-GLuint RandomTexture(size_t seed, int width, int height)
+GLuint RandomTexture(size_t seed, int width, int height, GLuint texture)
 {
-	GLuint texture;
-	glGenTextures(1, &texture);
+	
 	glBindTexture(GL_TEXTURE_2D, texture);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -104,13 +103,13 @@ GLuint RandomTexture(size_t seed, int width, int height)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
 	srand(seed);
-	unsigned char * pixels = new unsigned char[width * height * 3];
+	unsigned int  * pixels = new unsigned int[width * height * 4];
 	for (int i = 0; i < width; i++)
 		for (int j = 0; j < height; j++)
-			for (int k = 0; k < 3; k++)
-				pixels[(i + j * height) * 3 + k] = rand() % 256;
+			for (int k = 0; k < 4; k++)
+				pixels[(i + j * width) * 4 + k] = rand();
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32UI, width, height, 0, GL_RGBA_INTEGER, GL_UNSIGNED_INT, pixels);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	delete[] pixels;
 	return texture;
@@ -150,18 +149,18 @@ void GetMinMaxRGB(GLuint texture, int w, int h, unsigned char& minr, unsigned ch
 	glBindTexture(GL_TEXTURE_2D, texture);
 	unsigned char * pixels = new unsigned char[w * h * 3];
 	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
-	minr = 256; maxr = 0;
-	ming = 256; maxg = 0;
-	minb = 256; maxb = 0;
+	minr = 255; maxr = 0;
+	ming = 255; maxg = 0;
+	minb = 255; maxb = 0;
 	for (int i = 0; i < w; i++)
 		for (int j = 0; j < h; j++) {
-			unsigned char r = pixels[(i + j * h) * 3];
+			unsigned char r = pixels[(i + j * w) * 3];
 			minr = r < minr ? r : minr;
 			maxr = r > maxr ? r : maxr;
-			unsigned char g = pixels[(i + j * h) * 3 + 1];
+			unsigned char g = pixels[(i + j * w) * 3 + 1];
 			ming = g < ming ? g : ming;
 			maxg = g > maxg ? g : maxg;
-			unsigned char b = pixels[(i + j * h) * 3 + 2];
+			unsigned char b = pixels[(i + j * w) * 3 + 2];
 			minb = b < minb ? b : minb;
 			maxb = b > maxb ? b : maxb;
 		}
@@ -173,13 +172,29 @@ int GetHistogram(GLuint texture, int w, int h, int band, float * hist)
 {
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texture);
-	unsigned char * pixels = new unsigned char[w * h * 3];
-	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
-	int max = 0;
+	unsigned char * pixels = new unsigned char[w * h];
+	
+	GLuint format;
+	switch(band) {
+		case 0:
+			format = GL_RED;
+			break;
+		case 1:
+			format = GL_GREEN;
+			break;
+		case 2:
+			format = GL_BLUE;
+			break;
+		default:
+			format = GL_LUMINANCE;
+			break;
+	}
+	glGetTexImage(GL_TEXTURE_2D, 0, format, GL_UNSIGNED_BYTE, pixels);
+	float max = 0;
 	for (int i = 0; i < w; i++)
 		for (int j = 0; j < h; j++) {
-			if (++hist[pixels[(i + j * h) * 3 + band]] > max ) {
-				max = hist[pixels[(i + j * h) * 3 + band]];
+			if (++hist[pixels[i + j * w]] > max ) {
+				max = hist[pixels[i + j * w]];
 			}
 		}
 	delete[] pixels;
@@ -194,10 +209,42 @@ void GetHistogramAll(GLuint texture, int w, int h, float * hr, float * hg, float
 	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
 	for (int i = 0; i < w; i++)
 		for (int j = 0; j < h; j++) {
-			++hr[pixels[(i + j * h) * 3]];
-			++hg[pixels[(i + j * h) * 3 + 1]];
-			++hb[pixels[(i + j * h) * 3 + 2]];
+			++hr[pixels[(i + j * w) * 3]];
+			++hg[pixels[(i + j * w) * 3 + 1]];
+			++hb[pixels[(i + j * w) * 3 + 2]];
 		}
 	delete[] pixels;
 	return;
+}
+
+
+void GetMinMaxForSum(GLuint texture1, GLuint texture2,  int w, int h, float * min, float * max)
+{
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture1);
+	unsigned char * pixels1 = new unsigned char[w * h * 3];
+	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels1);
+	
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture2);
+	unsigned char * pixels2 = new unsigned char[w * h * 3];
+	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels2);
+	min[0] = 512; max[0] = -255;
+	min[1] = 512; max[1] = -255;
+	min[2] = 512; max[2] = -255;
+	for (int i = 0; i < w; i++)
+		for (int j = 0; j < h; j++) {
+			for (int k = 0; k < 3; k++) {
+				unsigned char r = pixels1[(i + j * w) * 3 + k] + pixels2[(i + j * w) * 3 + k];
+				min[k] = r < min[k] ? r : min[k];
+				max[k] = r > max[k] ? r : max[k];
+			}
+		}
+
+	min[0] /= 255; max[0] /= 255;
+	min[1] /= 255; max[1] /= 255;
+	min[2] /= 255; max[2] /= 255;
+
+	delete[] pixels1;
+	delete[] pixels2;
 }

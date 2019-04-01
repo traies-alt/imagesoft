@@ -148,7 +148,10 @@ int main(int, char**)
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
-
+		if (ImGui::Begin("Counter")) {
+			ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+			ImGui::End();
+		}
 		if (showFileSelectError) {
 			ImGui::OpenPopup("Image Select Error");
 			if (ImGui::BeginPopupModal("Image Select Error", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -249,6 +252,12 @@ int main(int, char**)
 			}
 
 			if (ImGui::BeginPopup("Add Filter")) {
+				if (ImGui::Button("SingleBand")) {
+					IFilter * filter = new SingleBandFilter(im->width, im->height);
+					filter->InitShader();
+					im->filters.push_back(filter);
+					ImGui::CloseCurrentPopup();
+				}
 				if (ImGui::Button("Substract")) {
 					IFilter * filter = new SubstractionFilter(im->width, im->height);
 					filter->InitShader();
@@ -305,6 +314,12 @@ int main(int, char**)
 				}
 				if (ImGui::Button("Gaussian Noise")) {
 					IFilter * filter = new GaussianNoiseFilter(im->width, im->height);
+					filter->InitShader();
+					im->filters.push_back(filter);
+					ImGui::CloseCurrentPopup();
+				}
+				if (ImGui::Button("Salt and pepper Noise")) {
+					IFilter * filter = new SaltAndPepperNoiseFilter(im->width, im->height);
 					filter->InitShader();
 					im->filters.push_back(filter);
 					ImGui::CloseCurrentPopup();

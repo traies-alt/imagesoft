@@ -57,16 +57,23 @@ optional<ImageWindowState> LoadImageFile(const char * filepath)
 optional<ImageWindowState> LoadImageFileRaw(const char * filepath, int width, int height) {
 	ifstream input(filepath, ios::binary);
 	std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(input), {});
+
+	unsigned char * flipBuffer = new unsigned char[width * height];
+
+	for (int i = 0; i < height; i++) 
+		for (int j = 0; j < width; j++) 
+			flipBuffer[ (height-i-1) * width + j] = buffer[i * width + j];
+
 	GLuint texture_map;
 	glGenTextures(1, &texture_map);
 	glBindTexture(GL_TEXTURE_2D, texture_map);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, buffer.data());
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, flipBuffer);
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	auto v = vector<IFilter*>();
@@ -76,8 +83,6 @@ optional<ImageWindowState> LoadImageFileRaw(const char * filepath, int width, in
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 
-	unsigned char *b = new unsigned char[buffer.size()];
-	std::copy(buffer.begin(), buffer.end(), b);
 	ImageWindowState i = {
 		texture_map,
 		width,
@@ -85,7 +90,7 @@ optional<ImageWindowState> LoadImageFileRaw(const char * filepath, int width, in
 		1.0f,
 		"",
 		imageID++,
-		b,
+		flipBuffer,
 		GL_LUMINANCE,
 		filesystem::current_path().string(),
 		move(v)
@@ -93,52 +98,13 @@ optional<ImageWindowState> LoadImageFileRaw(const char * filepath, int width, in
 	return make_optional(i);
 }
 
-// optional<ImageWindowState> LoadImageFilePGM(const char * filepath, int width, int height) {
-// 	ifstream input(filepath, ios::);
-// 	std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(input), {});
-// 	GLuint texture_map;
-// 	glGenTextures(1, &texture_map);
-// 	glBindTexture(GL_TEXTURE_2D, texture_map);
-
-// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-// 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-
-// 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, buffer.data());
-// 	glBindTexture(GL_TEXTURE_2D, 0);
-
-// 	auto v = vector<IFilter*>();
-// 	IFilter * fil = new MainFilter(width, height);
-// 	fil->InitShader();
-// 	v.push_back(fil);
-
-// 	glBindTexture(GL_TEXTURE_2D, 0);
-
-// 	unsigned char *b = new unsigned char[buffer.size()];
-// 	std::copy(buffer.begin(), buffer.end(), b);
-// 	ImageWindowState i = {
-// 		texture_map,
-// 		width,
-// 		height,
-// 		1.0f,
-// 		"",
-// 		imageID++,
-// 		b,
-// 		GL_LUMINANCE,
-// 		filesystem::current_path().string(),
-// 		move(v)
-// 	};
-// 	return make_optional(i);
-// }
-
 bool SaveImageFile(const char * filepath, ImageWindowState * image)
 {
 	glBindTexture(GL_TEXTURE_2D, image->filters[image->filters.size() - 1]->_outputTexture);
 
 	auto buffer = new unsigned char [4 * image->height * image->width];
-	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, buffer);
-	SOIL_save_image(filepath, SOIL_SAVE_TYPE_TGA, image->width, image->height, 4, buffer);
+	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, buffer);
+	SOIL_save_image(filepath, SOIL_SAVE_TYPE_BMP, image->width, image->height, 3, buffer);
 	delete[] buffer;
 
 	glBindTexture(GL_TEXTURE_2D, 0);
@@ -151,8 +117,8 @@ bool ReloadImage(ImageWindowState * image) {
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image->width, image->height, 0, image->colorFormat, GL_UNSIGNED_BYTE, image->data);
 	glBindTexture(GL_TEXTURE_2D, 0);
