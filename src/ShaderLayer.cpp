@@ -115,6 +115,19 @@ GLuint RandomTexture(size_t seed, int width, int height, GLuint texture)
 	return texture;
 }
 
+GLuint WeightedTexture(int maskSize, float * weights, GLuint texture)
+{
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, maskSize, maskSize, 0, GL_RED, GL_FLOAT, weights);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	return texture;
+}
+
 bool InitOutputTexture(int w, int h, GLuint& oFrameBuffer, GLuint& oTexture)
 {
 	// The framebuffer, which regroups 0, 1, or more textures, and 0 or 1 depth buffer.

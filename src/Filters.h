@@ -260,3 +260,26 @@ struct SaltAndPepperNoiseFilter: IFilter {
 	void RenderUI() override;
 	GLuint ApplyFilter(GLuint prevTexture) override;
 };
+
+struct MeanFilter: IFilter {
+	GLuint _textureSampler;
+	GLuint _glMaskSize;
+	GLuint _glWidth, _glHeight;
+	GLuint _glMaskSampler;
+	GLuint _maskWeightsTexture;
+	GLuint _glMaskDivision;
+
+	int _maskSize = 3;
+	float _maskDivision = 9;
+	
+	MeanFilter(int w, int h) {
+		_width = w;
+		_height = h;
+		_name = "Mean Filter";
+	}
+
+	void InitShader() override;
+	void RenderUI() override;
+	GLuint ApplyFilter(GLuint prevTexture) override;
+	void InitMask();
+};

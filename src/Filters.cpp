@@ -699,3 +699,61 @@ GLuint SaltAndPepperNoiseFilter::ApplyFilter(GLuint prevTexture)
 
 	return _outputTexture;
 }
+
+void MeanFilter::InitMask()
+{
+	_maskDivision = (float)_maskSize * _maskSize;
+	float * weights = new float[_maskDivision];
+	for (int i = 0; i < _maskDivision; i++) {
+		weights[i] = 1.0f;
+	}
+	_maskWeightsTexture = WeightedTexture(_maskSize, weights, _maskWeightsTexture);
+	delete[] weights;
+	
+	glUseProgram(_programID);
+	glUniform1f(_glMaskSize, _maskSize);
+	glUniform1f(_glWidth, _width);
+	glUniform1f(_glHeight, _height);
+	glUniform1f(_glMaskDivision, _maskDivision);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, _maskWeightsTexture);
+	glUniform1i(_glMaskSampler, 1);
+}
+
+void MeanFilter::InitShader()
+{
+	_programID = LoadShaders("./src/Passthrough.vert", "./src/MedianMask.frag");
+	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
+	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+	_glMaskSize = glGetUniformLocation(_programID, "maskSize");	
+	_glWidth = glGetUniformLocation(_programID, "width");	
+	_glHeight = glGetUniformLocation(_programID, "height");
+	_glMaskSampler = glGetUniformLocation(_programID, "maskWeights");
+	_glMaskDivision = glGetUniformLocation(_programID, "maskDivision");
+	
+	glGenTextures(1, &_maskWeightsTexture);
+	InitMask();
+}
+
+void MeanFilter::RenderUI()
+{
+	if(ImGui::InputInt("Mask Size", &_maskSize)) {
+		InitMask();
+	}
+}
+
+GLuint MeanFilter::ApplyFilter(GLuint prevTexture)
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
+	glViewport(0,0,_width,_height);
+
+	glUseProgram(_programID);
+	DrawTexturedTriangles(prevTexture, _textureSampler);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	return _outputTexture;
+}

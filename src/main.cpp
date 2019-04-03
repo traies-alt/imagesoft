@@ -324,6 +324,12 @@ int main(int, char**)
 					im->filters.push_back(filter);
 					ImGui::CloseCurrentPopup();
 				}
+				if (ImGui::Button("Mean Filter")) {
+					IFilter * filter = new MeanFilter(im->width, im->height);
+					filter->InitShader();
+					im->filters.push_back(filter);
+					ImGui::CloseCurrentPopup();
+				}
 				ImGui::EndPopup();
 			}
 			ImGui::End();
