@@ -1,12 +1,12 @@
 #include "imgui.h"
 #include "examples/imgui_impl_glfw.h"
 #include "examples/imgui_impl_opengl3.h"
+#include "FilesystemAdapter.h"
 #include <stdio.h>
 #include <glad/glad.h>  // Initialize with gladLoadGL()
 #include <GLFW/glfw3.h>
 #include <SOIL.h>
 #include <vector>
-#include <filesystem>
 #include <memory>
 #include <functional>
 #include <fstream>
@@ -45,12 +45,12 @@ int main(int, char**)
 	const char* glsl_version = "#version 150";
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);  // 3.2+ only
-	// glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
+//	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);  // 3.2+ only
+	 glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
 #endif
 
 	// Create window with graphics context
-	GLFWwindow* window = glfwCreateWindow(1920, 1080, "Dear ImGui GLFW+OpenGL3 example", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(1000, 1000, "Dear ImGui GLFW+OpenGL3 example", NULL, NULL);
 	if (window == NULL)
 		return 1;
 
@@ -102,7 +102,7 @@ int main(int, char**)
 	glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(g_uv_buffer_data), g_uv_buffer_data, GL_STATIC_DRAW);
 
-	// GLuint programID = LoadShaders("./src/SimpleVertexShader.vertexshader", "./src/SimpleFragmentShader.fragmentshader");
+	// GLuint programID = LoadShaders("./src/shaders/SimpleVertexShader.vertexshader", "./src/shaders/SimpleFragmentShader.fragmentshader");
 	// GLuint TextureID  = glGetUniformLocation(programID, "myTextureSampler");
 
 	// Setup Dear ImGui context
@@ -128,7 +128,7 @@ int main(int, char**)
 	bool showFileSelectError = false;
 	bool showFileSelectRaw = false;
 	int imageID = 0;
-	string path = filesystem::current_path().string();
+	string path = fs::current_path().string();
 	char saveFileName[50] = {0};
 	static bool no_close = false;
 
@@ -169,7 +169,7 @@ int main(int, char**)
 			ImGui::Begin("Choose File Window");
 
 			// Simple File Navigation
-			filesystem::path p;
+			fs::path p;
 			if (SimpleFileNavigation(path, p)) {
 				auto imOpt = LoadImageFile(p.string().c_str());
 				if (imOpt.has_value()) {
@@ -188,7 +188,7 @@ int main(int, char**)
 			static int rawWidth, rawHeight;
 			ImGui::InputInt("Raw Width", &rawWidth);
 			ImGui::InputInt("Raw Height", &rawHeight);
-			filesystem::path p;
+			fs::path p;
 			if (SimpleFileNavigation(path, p)) {
 				auto imOpt = LoadImageFileRaw(p.string().c_str(), rawWidth, rawHeight);
 				if (imOpt.has_value()) {

@@ -1,6 +1,6 @@
 #pragma once
 #include <glad/glad.h>
-#include <filesystem>
+#include "FilesystemAdapter.h"
 
 void InitVertexBuffer();
 
@@ -68,7 +68,7 @@ struct SubstractionFilter: IFilter {
 		_width = w;
 		_height = h;
 		_name = "Substraction";
-		_path = std::filesystem::current_path().string();
+		_path = fs::current_path().string();
 	}
 
 	void InitShader() override;

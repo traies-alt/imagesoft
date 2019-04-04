@@ -86,7 +86,7 @@ void DrawTexturedTriangles(GLuint ogTexture, GLuint nextShaderTextureSampler)
 
 void MainFilter::InitShader()
 {
-	_programID = LoadShaders("./src/Passthrough.vert", "./src/SimpleFragmentShader.fragmentshader");
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/SimpleFragmentShader.fragmentshader");
 	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
 
 	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
@@ -110,7 +110,7 @@ GLuint MainFilter::ApplyFilter(GLuint prevTexture)
 
 void SingleBandFilter::InitShader()
 {
-	_programID = LoadShaders("./src/Passthrough.vert", "./src/SingleBand.frag");
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/SingleBand.frag");
 	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
 
 	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
@@ -147,7 +147,7 @@ GLuint SingleBandFilter::ApplyFilter(GLuint prevTexture)
 
 void SubstractionFilter::InitShader()
 {
-	_programID = LoadShaders("./src/Passthrough.vert", "./src/Substract.frag");
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/Substract.frag");
 	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
 	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
 		std::cout << "Error rendering to texture." << std::endl;
@@ -174,7 +174,7 @@ void SubstractionFilter::RenderUI()
 		ImGui::OpenPopup("Choose image");
 	}
 	if (ImGui::BeginPopup("Choose image")) {
-		std::filesystem::path texFile;
+		fs::path texFile;
 		if (SimpleFileNavigation(_path, texFile)) {
 			GLuint _secondTex = SOIL_load_OGL_texture(
 				texFile.string().c_str(),
@@ -217,7 +217,7 @@ GLuint SubstractionFilter::ApplyFilter(GLuint prevTexture)
 
 void NegativeFilter::InitShader()
 {
-	_programID = LoadShaders("./src/Passthrough.vert", "./src/Negative.frag");
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/Negative.frag");
 	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
 	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
 		std::cout << "Error rendering to texture." << std::endl;
@@ -242,7 +242,7 @@ GLuint NegativeFilter::ApplyFilter(GLuint prevTexture)
 
 void ScalarFilter::InitShader()
 {
-	_programID = LoadShaders("./src/Passthrough.vert", "./src/Scalar.frag");
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/Scalar.frag");
 	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
 	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
 		std::cout << "Error rendering to texture." << std::endl;
@@ -295,7 +295,7 @@ GLuint ScalarFilter::ApplyFilter(GLuint prevTexture)
 
 void DynamicRangeCompressionFilter::InitShader()
 {
-	_programID = LoadShaders("./src/Passthrough.vert", "./src/DynamicRangeCompression.frag");
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/DynamicRangeCompression.frag");
 	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
 	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
 		std::cout << "Error rendering to texture." << std::endl;
@@ -331,7 +331,7 @@ GLuint DynamicRangeCompressionFilter::ApplyFilter(GLuint prevTexture)
 
 void GammaFilter::InitShader()
 {
-	_programID = LoadShaders("./src/Passthrough.vert", "./src/Gamma.frag");
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/Gamma.frag");
 	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
 	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
 		std::cout << "Error rendering to texture." << std::endl;
@@ -364,7 +364,7 @@ GLuint GammaFilter::ApplyFilter(GLuint prevTexture)
 
 void ThresholdFilter::InitShader()
 {
-	_programID = LoadShaders("./src/Passthrough.vert", "./src/Threshold.frag");
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/Threshold.frag");
 	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
 	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
 		std::cout << "Error rendering to texture." << std::endl;
@@ -396,7 +396,7 @@ GLuint ThresholdFilter::ApplyFilter(GLuint prevTexture)
 
 void ContrastFilter::InitShader()
 {
-	_programID = LoadShaders("./src/Passthrough.vert", "./src/Contrast.frag");
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/Contrast.frag");
 	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
 	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
 		std::cout << "Error rendering to texture." << std::endl;
@@ -447,7 +447,7 @@ GLuint ContrastFilter::ApplyFilter(GLuint prevTexture)
 
 void EqualizationFilter::InitShader()
 {
-	_programID = LoadShaders("./src/Passthrough.vert", "./src/Equalization.frag");
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/Equalization.frag");
 	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
 	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
 		std::cout << "Error rendering to texture." << std::endl;
@@ -523,7 +523,7 @@ GLuint EqualizationFilter::ApplyFilter(GLuint prevTexture)
 
 void ExponentialNoiseFilter::InitShader()
 {
-	_programID = LoadShaders("./src/Passthrough.vert", "./src/ExponentialNoise.frag");
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/ExponentialNoise.frag");
 	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
 	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
 		std::cout << "Error rendering to texture." << std::endl;
@@ -575,7 +575,7 @@ GLuint ExponentialNoiseFilter::ApplyFilter(GLuint prevTexture)
 
 void RayleighNoiseFilter::InitShader()
 {
-	_programID = LoadShaders("./src/Passthrough.vert", "./src/RayleighNoise.frag");
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/RayleighNoise.frag");
 	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
 	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
 		std::cout << "Error rendering to texture." << std::endl;
@@ -626,7 +626,7 @@ GLuint RayleighNoiseFilter::ApplyFilter(GLuint prevTexture)
 
 void GaussianNoiseFilter::InitShader()
 {
-	_programID = LoadShaders("./src/Passthrough.vert", "./src/GaussianNoise.frag");
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/GaussianNoise.frag");
 	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
 	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
 		std::cout << "Error rendering to texture." << std::endl;
@@ -702,7 +702,7 @@ GLuint GaussianNoiseFilter::ApplyFilter(GLuint prevTexture)
 
 void SaltAndPepperNoiseFilter::InitShader()
 {
-	_programID = LoadShaders("./src/Passthrough.vert", "./src/SaltAndPepperNoise.frag");
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/SaltAndPepperNoise.frag");
 	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
 	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
 		std::cout << "Error rendering to texture." << std::endl;
@@ -774,7 +774,7 @@ void MeanFilter::InitMask()
 
 void MeanFilter::InitShader()
 {
-	_programID = LoadShaders("./src/Passthrough.vert", "./src/Mask.frag");
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/Mask.frag");
 	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
 	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
 		std::cout << "Error rendering to texture." << std::endl;
@@ -888,7 +888,7 @@ void MedianFilter::InitMask()
 
 void MedianFilter::InitShader()
 {
-	_programID = LoadShaders("./src/Passthrough.vert", "./src/MedianMask.frag");
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/MedianMask.frag");
 	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
 	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
 		std::cout << "Error rendering to texture." << std::endl;

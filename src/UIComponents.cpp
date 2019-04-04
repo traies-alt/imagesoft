@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <glad/glad.h>
 #include "ShaderLayer.h"
+#include "FilesystemAdapter.h"
 
 using namespace std;
 
@@ -11,16 +12,16 @@ using namespace std;
  * Returns true on file select.
  *
  */
-bool SimpleFileNavigation(string &path, filesystem::path &outFile)
+bool SimpleFileNavigation(string &path, fs::path &outFile)
 {
 	ImGui::Text(path.c_str());
     if (ImGui::Button("..")) {
-        auto pathEntry = filesystem::directory_entry(path);
+        auto pathEntry = fs::directory_entry(path);
         path = pathEntry.path().parent_path().string();
     }
-    for (const auto & entry : filesystem::directory_iterator(path)) {
+    for (const auto & entry : fs::directory_iterator(path)) {
         if (ImGui::Button(entry.path().filename().string().c_str())) {
-            if (entry.is_directory()) {
+            if (fs::is_directory(entry.path().string())) {
                 path = entry.path().string();
             } else {
 								outFile = entry.path();
@@ -86,10 +87,10 @@ bool ImageWindow(ImageWindowState &im, GLuint vertexBuffer, GLuint uvbuffer)
 					ImGui::OpenPopup("Save");
 			}
 			if (ImGui::BeginPopup("Save")) {
-				filesystem::path p;
+				fs::path p;
 				static char saveFileName[50];
 				if (SimpleFileNavigation(im.outputPath, p)) {
-						strncpy_s(saveFileName, p.filename().string().c_str(), 50);
+						strncpy(saveFileName, p.filename().string().c_str(), 50);
 				}
 				ImGui::InputText("New image name", saveFileName, 50);
 				if (ImGui::Button("Save")) {

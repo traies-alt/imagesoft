@@ -1,7 +1,7 @@
 #include "ImageWindowState.h"
+#include "FilesystemAdapter.h"
 #include <SOIL.h>
 #include <optional>
-#include <filesystem>
 #include <iostream>
 #include <fstream>
 #include <memory>
@@ -47,7 +47,7 @@ optional<ImageWindowState> LoadImageFile(const char * filepath)
 			imageID++,
 			pixels,
 			GL_RGB,
-			filesystem::current_path().string(),
+			fs::current_path().string(),
 			move(v)
 		};
 		return make_optional(im);
@@ -92,7 +92,7 @@ optional<ImageWindowState> LoadImageFileRaw(const char * filepath, int width, in
 		imageID++,
 		flipBuffer,
 		GL_LUMINANCE,
-		filesystem::current_path().string(),
+		fs::current_path().string(),
 		move(v)
 	};
 	return make_optional(i);
