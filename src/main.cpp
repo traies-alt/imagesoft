@@ -282,6 +282,12 @@ int main(int, char**)
 					im->filters.push_back(filter);
 					ImGui::CloseCurrentPopup();
 				}
+				if (ImGui::Button("Gamma")) {
+					IFilter * filter = new GammaFilter(im->width, im->height);
+					filter->InitShader();
+					im->filters.push_back(filter);
+					ImGui::CloseCurrentPopup();
+				}
 				if (ImGui::Button("Threshold")) {
 					IFilter * filter = new ThresholdFilter(im->width, im->height);
 					filter->InitShader();
@@ -326,6 +332,12 @@ int main(int, char**)
 				}
 				if (ImGui::Button("Mean Filter")) {
 					IFilter * filter = new MeanFilter(im->width, im->height);
+					filter->InitShader();
+					im->filters.push_back(filter);
+					ImGui::CloseCurrentPopup();
+				}
+				if (ImGui::Button("Median Filter")) {
+					IFilter * filter = new MedianFilter(im->width, im->height);
 					filter->InitShader();
 					im->filters.push_back(filter);
 					ImGui::CloseCurrentPopup();

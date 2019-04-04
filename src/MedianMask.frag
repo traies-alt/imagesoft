@@ -9,11 +9,42 @@ uniform float width;
 uniform float height;
 uniform float maskDivision;
 
-#define sort(arr, size)		for (int i = 0; i < size; i++) {float m = arr[i];int minIndex= i;for (int j = i + 1; j < size; j++) {if (arr[j] < m) {m = arr[j];minIndex = j;}}arr[minIndex] = arr[i];arr[i] = m;}
+float array[80];
+float median(int size) {
+	for (int i = 0; i < size; i++) {
+		float m = array[i];
+		int minIndex= i;
+		for (int j = i + 1; j < size; j++) {
+			if (array[j] < m) {
+					m = array[j];
+					minIndex = j;
+			}
+		}
+		array[minIndex] = array[i];
+		array[i] = m;
+	}
+	return array[size / 2];
+}
 
-float redArray[16]; 
-float greenArray[16]; 
-float blueArray[16]; 
+float mediancolor(int band, float x, float y, float startWidth, float startHeight, float endWidth, float endHeight)
+{
+	int count = 0;
+	for (float i = startWidth; i <= endWidth; i++ ) {
+		for (float j = startHeight; j <= endHeight; j++) {
+			float normalX = i / width;
+			float normalY = j / height;
+			float weightX = (i - x) / maskSize + 0.5F;
+			float weightY = (j - y) / maskSize + 0.5F;
+			
+			vec3 neighbour = texture(myTextureSampler, vec2( normalX, normalY)).rgb;
+			float t = floor(texture(maskWeights, vec2(weightX, weightY)).r);
+			for (float k = 0.0; k < t; k++) {
+				array[count++] = neighbour[band];
+			}
+		}
+	}
+	return median(count);
+}
 
 void main() {
 	float x = UV.x * width;
@@ -21,27 +52,13 @@ void main() {
 
 	vec3 acum = vec3(0);
 	
-	int count = 0;
-	float minWidth =  min(width-1, x + maskSize / 2);
-	float minHeight = min(height-1, y + maskSize / 2);
-	for (float i = max(0, x - maskSize / 2); i <= minWidth; i++ ) {
-		for (float j = max(0, y - maskSize / 2); j <= minHeight; j++) {
-			float normalX = i / width;
-			float normalY = j / height;
-			
-			vec3 neighbour = texture(myTextureSampler, vec2( normalX, normalY)).rgb;
-			redArray[count] = neighbour.r;
-			greenArray[count] = neighbour.g;
-			blueArray[count] = neighbour.b;
-			count++;
-		}
-	}
-	int arraySize = count;
-	sort(redArray, arraySize);
-	sort(blueArray, arraySize);
-	sort(greenArray, arraySize);
-	color.r = redArray[arraySize / 2];
-	color.g = greenArray[arraySize / 2];
-	color.b = blueArray[arraySize / 2];
-	// color = vec3(0,0,0);
+	float halfMaskSize =  floor(int(maskSize) / 2);
+	float endWidth =  min(width, x + halfMaskSize);
+	float endHeight = min(height, y + halfMaskSize);
+	float startWidth = max(0, x - halfMaskSize);
+	float startHeight = max(0, y - halfMaskSize);
+
+	color.r = mediancolor(0, x, y, startWidth, startHeight, endWidth, endHeight);
+	color.g = mediancolor(1, x, y, startWidth, startHeight, endWidth, endHeight);
+	color.b = mediancolor(2, x, y, startWidth, startHeight, endWidth, endHeight);
 }

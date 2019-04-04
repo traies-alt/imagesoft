@@ -74,10 +74,12 @@ bool ImageWindow(ImageWindowState &im, GLuint vertexBuffer, GLuint uvbuffer)
 			} else if (ImGui::Selectable("LUMINOSITY", im.histogramBand == 3)) {
 				im.histogramBand = 3;
 			}
-			// if (ImGui::Button("Plot histogram") ) {
+			ImGui::Checkbox("Calc histogram every frame?", &im._calcHistogram);
+
+			if (im._calcHistogram) {
 				memset(im._hist, 0, sizeof(im._hist));
 				im._maxVal = GetHistogram(t, im.width, im.height, im.histogramBand, im._hist);
-			// }
+			}
 			ImGui::End();
 
 			if (ImGui::Button("Save")) {

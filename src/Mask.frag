@@ -10,17 +10,24 @@ uniform float height;
 uniform float maskDivision;
 
 void main() {
-	int x = int(UV.x * width);
-	int y = int(UV.y * height);
+	float x = floor(UV.x * width);
+	float y = floor(UV.y * height);
 
 	vec3 acum = vec3(0);
-	for (int i = max(0, x - int(maskSize) / 2); i <= min(width-1, x + int(maskSize) / 2); i++ ) {
-		for (int j = max(0, y - int(maskSize) / 2); j <= min(height-1, y + int(maskSize) / 2); j++) {
-			float normalX = float(i) / width;
-			float normalY = float(j) / height;
+	float halfMaskSize =  floor(int(maskSize) / 2);
+	float endWidth =  min(width, x + halfMaskSize);
+	float endHeight = min(height, y + halfMaskSize);
+	float startWidth = max(0, x - halfMaskSize);
+	float startHeight = max(0, y - halfMaskSize);
+	for (float i = startWidth; i <= endWidth; i++ ) {
+		for (float j = startHeight; j <= endHeight; j++) {
+			float normalX = i / width;
+			float normalY = j / height;
+			float weightX = (i - x) / maskSize + 0.5F;
+			float weightY = (j - y) / maskSize + 0.5F;
 			
 			vec3 neighbour = texture(myTextureSampler, vec2( normalX, normalY)).rgb;
-			float weight = texture(maskWeights, vec2(normalX, normalY)).r;
+			float weight = floor(texture(maskWeights, vec2(weightX, weightY)).r);
 			acum += neighbour * weight;
 		}
 	}

@@ -2,12 +2,16 @@
 #include <iostream>
 #include <imgui.h>
 #include <SOIL.h>
+#include <string>
 #include "UIComponents.h"
 #include "ShaderLayer.h"
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 static GLuint vertexbuffer;
 static GLuint uvbuffer;
 
+using namespace std;
 void InitVertexBuffer()
 {
 	const GLfloat g_vertex_buffer_data[] = {
@@ -245,8 +249,13 @@ void ScalarFilter::InitShader()
 		return;
 	}
 	_factorGl = glGetUniformLocation(_programID, "factor");
+	_glC = glGetUniformLocation(_programID, "c");
+	_glDynamicRange = glGetUniformLocation(_programID, "dynamicRange");
+	
 	glUseProgram(_programID);
 	glUniform1f(_factorGl, _factor);
+	glUniform3f(_glC, 1, 1, 1);
+	glUniform1i(_glDynamicRange, 0);
 }
 
 void ScalarFilter::RenderUI()
@@ -255,6 +264,14 @@ void ScalarFilter::RenderUI()
 		glUseProgram(_programID);
 		glUniform1f(_factorGl, _factor);
 	}
+	if (ImGui::Checkbox("Dynamic range adjust", &_dynamicRange)) {
+		glUseProgram(_programID);		
+		if (_dynamicRange) {
+			glUniform1i(_glDynamicRange, 1);		
+		} else {
+			glUniform1i(_glDynamicRange, 0);
+		}
+	}
 }
 
 GLuint ScalarFilter::ApplyFilter(GLuint prevTexture)
@@ -262,6 +279,14 @@ GLuint ScalarFilter::ApplyFilter(GLuint prevTexture)
 	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
 	glViewport(0,0,_width,_height);
 	glUseProgram(_programID);
+	if (_dynamicRange) {
+		unsigned char _minr, _ming, _minb, _maxr, _maxg, _maxb;
+		GetMinMaxRGB(prevTexture, _width, _height, _minr, _ming, _minb, _maxr, _maxg, _maxb);
+		float cr = 1.0 / (log(1.0 + min(255.0f, _maxr * _factor) / 255.0)),
+					cg = 1.0 / (log(1.0 + min(255.0f, _maxg * _factor) / 255.0)),
+					cb = 1.0 / (log(1.0 + min(255.0f, _maxb * _factor) / 255.0));
+		glUniform3f(_glC, cr, cg, cb);
+	}
 	DrawTexturedTriangles(prevTexture, _textureSampler);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -291,12 +316,45 @@ GLuint DynamicRangeCompressionFilter::ApplyFilter(GLuint prevTexture)
 	glUseProgram(_programID);
 	if (_calcToggle) {
 		GetMinMaxRGB(prevTexture, _width, _height, _minr, _ming, _minb, _maxr, _maxg, _maxb);
-		float cr = 1.0 / (log(1.0 + _maxr / 256.0)),
-					cg = 1.0 / (log(1.0 + _maxg / 256.0)),
-					cb = 1.0 / (log(1.0 + _maxb / 256.0));
+		float cr = 1.0 / (log(1.0 + _maxr / 255.0)),
+					cg = 1.0 / (log(1.0 + _maxg / 255.0)),
+					cb = 1.0 / (log(1.0 + _maxb / 255.0));
 		
 		glUniform3f(_glC, cr, cg, cb);
 	}
+
+	DrawTexturedTriangles(prevTexture, _textureSampler);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	return _outputTexture;
+}
+
+void GammaFilter::InitShader()
+{
+	_programID = LoadShaders("./src/Passthrough.vert", "./src/Gamma.frag");
+	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
+	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+	_glGamma = glGetUniformLocation(_programID, "gamma");
+	glUseProgram(_programID);
+	glUniform1f(_glGamma, _gamma);
+}
+
+void GammaFilter::RenderUI()
+{
+	if (ImGui::InputFloat("Gamma", &_gamma)) {
+		glUseProgram(_programID);
+		glUniform1f(_glGamma, _gamma);
+	}
+}
+
+GLuint GammaFilter::ApplyFilter(GLuint prevTexture)
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
+	glViewport(0,0,_width,_height);
+	glUseProgram(_programID);
 
 	DrawTexturedTriangles(prevTexture, _textureSampler);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -702,14 +760,7 @@ GLuint SaltAndPepperNoiseFilter::ApplyFilter(GLuint prevTexture)
 
 void MeanFilter::InitMask()
 {
-	_maskDivision = (float)_maskSize * _maskSize;
-	float * weights = new float[_maskDivision];
-	for (int i = 0; i < _maskDivision; i++) {
-		weights[i] = 1.0f;
-	}
-	_maskWeightsTexture = WeightedTexture(_maskSize, weights, _maskWeightsTexture);
-	delete[] weights;
-	
+	_maskWeightsTexture = WeightedTexture(_maskSize, _weights, _maskWeightsTexture);
 	glUseProgram(_programID);
 	glUniform1f(_glMaskSize, _maskSize);
 	glUniform1f(_glWidth, _width);
@@ -722,6 +773,120 @@ void MeanFilter::InitMask()
 }
 
 void MeanFilter::InitShader()
+{
+	_programID = LoadShaders("./src/Passthrough.vert", "./src/Mask.frag");
+	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
+	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+	_glMaskSize = glGetUniformLocation(_programID, "maskSize");	
+	_glWidth = glGetUniformLocation(_programID, "width");	
+	_glHeight = glGetUniformLocation(_programID, "height");
+	_glMaskSampler = glGetUniformLocation(_programID, "maskWeights");
+	_glMaskDivision = glGetUniformLocation(_programID, "maskDivision");
+	
+	glGenTextures(1, &_maskWeightsTexture);
+	InitMask();
+}
+
+float GaussianWeight(float x, float y, float sqrSigma)
+{
+	return exp(-(x * x + y * y) / 2 * (sqrSigma)) / (1.0 / (2 * M_PI * sqrSigma));
+}
+
+void MeanFilter::RenderUI()
+{
+	bool maskChanged = false;
+	maskChanged |= ImGui::InputInt("Mask Size", &_maskSize);
+	maskChanged |= ImGui::InputFloat("Mask division", &_maskDivision);
+	ImGui::PushItemWidth(50);
+	for (int i = 0; i < _maskSize; i++) {
+		for (int j = 0; j < _maskSize; j++) {
+			maskChanged |= ImGui::InputFloat(string("Mask Row").append(to_string(i * _maskSize + j)).c_str(), &_weights[i * _maskSize + j]);
+			ImGui::SameLine();
+		}
+		ImGui::Text("");
+	}
+	ImGui::PopItemWidth();
+	if (ImGui::Button("High pass")) {
+		maskChanged = true;
+		_maskDivision = _maskSize * _maskSize;
+		for (int i = 0; i < _maskSize; i++) {
+			for (int j = 0; j < _maskSize; j++) {
+				if (i == _maskSize / 2 && j == _maskSize / 2) {
+					_weights[i * _maskSize + j] = _maskDivision;
+				} else {
+					_weights[i * _maskSize + j] = -1;
+				}
+			}
+		}
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Mean")) {
+		maskChanged = true;
+		_maskDivision = _maskSize * _maskSize;
+		for (int i = 0; i < _maskSize; i++) {
+			for (int j = 0; j < _maskSize; j++) {
+				_weights[i * _maskSize + j] = 1;
+			}
+		}
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Gaussian")) {
+		maskChanged = true;
+		float sqrSigma = _sigma * _sigma;
+		_maskDivision = 0;
+		for (float i = 0; i < _maskSize; i++) {
+			for (float j = 0; j < _maskSize; j++) {
+				float normalX = i / (_maskSize - 1) - 0.5; 
+				float normalY = j / (_maskSize - 1) - 0.5; 
+				float w = GaussianWeight(normalX, normalY, sqrSigma);
+				_maskDivision += w;
+				_weights[(int)(i * _maskSize + j)] = w;
+			}
+		}
+	}
+	ImGui::SameLine();
+	ImGui::InputFloat("Sigma", &_sigma);
+	if (maskChanged){
+		InitMask();
+	}
+}
+
+GLuint MeanFilter::ApplyFilter(GLuint prevTexture)
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
+	glViewport(0,0,_width,_height);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, _maskWeightsTexture);
+	glUniform1i(_glMaskSampler, 1);
+
+	glUseProgram(_programID);
+	DrawTexturedTriangles(prevTexture, _textureSampler);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	return _outputTexture;
+}
+
+void MedianFilter::InitMask()
+{
+	_maskDivision = (float)_maskSize * _maskSize;
+	_maskWeightsTexture = WeightedTexture(_maskSize, _weights, _maskWeightsTexture);
+	
+	glUseProgram(_programID);
+	glUniform1f(_glMaskSize, _maskSize);
+	glUniform1f(_glWidth, _width);
+	glUniform1f(_glHeight, _height);
+	glUniform1f(_glMaskDivision, _maskDivision);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, _maskWeightsTexture);
+	glUniform1i(_glMaskSampler, 1);
+}
+
+void MedianFilter::InitShader()
 {
 	_programID = LoadShaders("./src/Passthrough.vert", "./src/MedianMask.frag");
 	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
@@ -739,17 +904,32 @@ void MeanFilter::InitShader()
 	InitMask();
 }
 
-void MeanFilter::RenderUI()
+void MedianFilter::RenderUI()
 {
-	if(ImGui::InputInt("Mask Size", &_maskSize)) {
+	bool maskChanged = false;
+	maskChanged |= ImGui::InputInt("Mask Size", &_maskSize);
+	ImGui::PushItemWidth(50);
+	for (int i = 0; i < _maskSize; i++) {
+		for (int j = 0; j < _maskSize; j++) {
+			maskChanged |= ImGui::InputFloat(string("Mask Row").append(to_string(i * _maskSize + j)).c_str(), &_weights[i * _maskSize + j]);
+			ImGui::SameLine();
+		}
+		ImGui::Text("");
+	}
+	ImGui::PopItemWidth();
+	if (maskChanged){
 		InitMask();
 	}
 }
 
-GLuint MeanFilter::ApplyFilter(GLuint prevTexture)
+GLuint MedianFilter::ApplyFilter(GLuint prevTexture)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
 	glViewport(0,0,_width,_height);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, _maskWeightsTexture);
+	glUniform1i(_glMaskSampler, 1);
 
 	glUseProgram(_programID);
 	DrawTexturedTriangles(prevTexture, _textureSampler);

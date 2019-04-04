@@ -92,8 +92,11 @@ struct NegativeFilter: IFilter {
 struct ScalarFilter: IFilter {
 	GLuint _textureSampler;
 	GLuint _factorGl;
+	GLuint _glC;
+	GLuint _glDynamicRange;
 	float _factor;
 
+	bool _dynamicRange = false;
 	ScalarFilter(int w, int h) {
 		_width = w;
 		_height = h;
@@ -116,6 +119,22 @@ struct DynamicRangeCompressionFilter: IFilter {
 		_width = w;
 		_height = h;
 		_name = "Dynamic range compression";
+	}
+
+	void InitShader() override;
+	void RenderUI() override;
+	GLuint ApplyFilter(GLuint prevTexture) override;
+};
+
+struct GammaFilter: IFilter {
+	GLuint _textureSampler;
+	GLuint _glGamma;
+
+	float _gamma = 2;
+	GammaFilter(int w, int h) {
+		_width = w;
+		_height = h;
+		_name = "Gamma";
 	}
 
 	void InitShader() override;
@@ -247,7 +266,7 @@ struct SaltAndPepperNoiseFilter: IFilter {
 	GLuint _glContamination1;
 	GLuint _glContamination2;
 
-	float _contamination1 = 0.01, _contamination2 = 0.09;
+	float _contamination1 = 0.01, _contamination2 = 0.9;
 	int _seed = 0;
 	
 	SaltAndPepperNoiseFilter(int w, int h) {
@@ -270,12 +289,46 @@ struct MeanFilter: IFilter {
 	GLuint _glMaskDivision;
 
 	int _maskSize = 3;
+	float  * _weights;
+	float _sigma = 1;
 	float _maskDivision = 9;
 	
 	MeanFilter(int w, int h) {
 		_width = w;
 		_height = h;
 		_name = "Mean Filter";
+		_weights = new float[100];
+		for (int i = 0; i < 100; i++) {
+			_weights[i] = 1;
+		}
+	}
+
+	void InitShader() override;
+	void RenderUI() override;
+	GLuint ApplyFilter(GLuint prevTexture) override;
+	void InitMask();
+};
+
+struct MedianFilter: IFilter {
+	GLuint _textureSampler;
+	GLuint _glMaskSize;
+	GLuint _glWidth, _glHeight;
+	GLuint _glMaskSampler;
+	GLuint _maskWeightsTexture;
+	GLuint _glMaskDivision;
+
+	int _maskSize = 3;
+	float  * _weights;
+	float _maskDivision = 9;
+	
+	MedianFilter(int w, int h) {
+		_width = w;
+		_height = h;
+		_name = "Median Filter";
+		_weights = new float[100];
+		for (int i = 0; i < 100; i++) {
+			_weights[i] = 1;
+		}
 	}
 
 	void InitShader() override;
