@@ -211,11 +211,11 @@ int main(int, char**)
 		}
 
 		if (generateImage) {
+			static int size = 200;
 			ImGui::Begin("Generate Shape");
 			switch (shape) {
 				case CIRCLE:
 				case SQUARE: {
-                    static int size = 200;
                     static float filled = 0.8;
                     static float color[3] = {1, 1, 1};
 
@@ -263,7 +263,6 @@ int main(int, char**)
 				case GRADIENT: {
                     static float from[3] = {0, 0, 0};
                     static float to[3] = {0, 0, 0};
-                    static int size = 200;
                     ImGui::InputInt("Size", &size);
                     ImGui::ColorEdit3("From", from);
                     ImGui::ColorEdit3("To", to);
@@ -360,6 +359,18 @@ int main(int, char**)
 						delete *it;
 						it = im->filters.erase(it);
 					} else {
+					    if(it != im->filters.begin()) {
+							ImGui::SameLine();
+							if (ImGui::Button("Move Up")) {
+								std::iter_swap(it, it - 1);
+							}
+						}
+					    if(it != im->filters.end() - 1) {
+							ImGui::SameLine();
+							if (ImGui::Button("Move Down")) {
+								std::iter_swap(it, it + 1);
+							}
+						}
 						(*it)->RenderUI();
 						it++;
 					}
