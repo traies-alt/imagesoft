@@ -5,3 +5,6 @@ cmake_install.cmake
 .vscode
 .vs
 CMakeSettings.json
+.idea
+cmake-build-debug
+
