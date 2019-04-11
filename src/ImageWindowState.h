@@ -4,8 +4,12 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <functional>
+#include <tuple>
 
 #include "Filters.h"
+
+typedef unsigned char u_char;
 
 struct ImageWindowState {
 	GLuint texture;
@@ -28,3 +32,6 @@ std::optional<ImageWindowState> LoadImageFile(const char * filepath);
 std::optional<ImageWindowState> LoadImageFileRaw(const char * filepath, int width, int height);
 bool SaveImageFile(const char * filepath, ImageWindowState * image);
 bool ReloadImage(ImageWindowState * image);
+std::optional<ImageWindowState> CreateImage(unsigned char * pixels, int w, int h);
+void fillBuffer(unsigned char* buffer, int w, int h,
+				const std::function<std::tuple<u_char, u_char, u_char >(int, int)> &value);

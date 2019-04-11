@@ -12,6 +12,7 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <tuple>
 
 #include "ImageWindowState.h"
 #include "UIComponents.h"
@@ -122,11 +123,16 @@ int main(int, char**)
 	bool show_another_window = false;
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
+
+	enum Shape { CIRCLE, SQUARE, GRADIENT };
 	float zoom = 1;
 	auto imageWindows = vector<unique_ptr<ImageWindowState>>();
 	bool showFileSelect = false;
 	bool showFileSelectError = false;
 	bool showFileSelectRaw = false;
+	bool generateImage = false;
+	Shape shape = CIRCLE;
+
 	int imageID = 0;
 	string path = fs::current_path().string();
 	char saveFileName[50] = {0};
@@ -163,8 +169,10 @@ int main(int, char**)
 				ImGui::EndPopup();
 			}
 		}
-		if (show_demo_window)
+		if (show_demo_window) {
 			ImGui::ShowDemoWindow(&show_demo_window);
+		}
+
 		if (showFileSelect) {
 			ImGui::Begin("Choose File Window");
 
@@ -201,6 +209,104 @@ int main(int, char**)
 			}
 			ImGui::End();
 		}
+
+		if (generateImage) {
+			ImGui::Begin("Generate Shape");
+			switch (shape) {
+				case CIRCLE:
+				case SQUARE: {
+                    static int size = 200;
+                    static float filled = 0.8;
+                    static float color[3] = {1, 1, 1};
+
+                    ImGui::InputInt("Size", &size);
+                    ImGui::SliderFloat("Filled Percentage", &filled, 0.1, 0.9);
+                    ImGui::ColorEdit3("Color", color);
+
+                    static float to[3] = {0, 0, 0};
+                    if (ImGui::Button("Generate")) {
+                        auto image = new unsigned char[3 * size * size];
+
+                        if (shape == SQUARE) {
+                            float margin = size / 2.0f * filled;
+                            int center = size / 2;
+                            fillBuffer(image, size, size, [margin, center](int i, int j) -> std::tuple<u_char, u_char, u_char> {
+								if(abs((i - center)) < margin && abs(j - center) < margin) {
+									return std::make_tuple(0xFF, 0xFF, 0xFF);
+								} else {
+									return std::make_tuple(0, 0, 0);
+								}
+                            });
+
+                        } else if (shape == CIRCLE) {
+                            float radius = size / 2.0f * filled;
+                            int center = size / 2;
+
+                            fillBuffer(image, size, size, [center, radius](int i, int j) -> std::tuple<u_char, u_char, u_char> {
+                                int x = i - center;
+                                int y = j - center;
+                                if(x * x + y * y < radius * radius) {
+                                	return std::make_tuple(0xFF, 0xFF, 0xFF);
+                                } else {
+									return std::make_tuple(0, 0, 0);
+                                }
+                            });
+                        }
+
+                        imageWindows.push_back(make_unique<ImageWindowState>(CreateImage(image, size, size).value()));
+                        delete[] image;
+                        generateImage = false;
+                    }
+                }
+
+					break;
+				case GRADIENT: {
+                    static float from[3] = {0, 0, 0};
+                    static float to[3] = {0, 0, 0};
+                    static int size = 200;
+                    ImGui::InputInt("Size", &size);
+                    ImGui::ColorEdit3("From", from);
+                    ImGui::ColorEdit3("To", to);
+
+                    if (ImGui::Button("Generate")) {
+						auto image = new unsigned char[3 * size * size];
+
+						fillBuffer(image, size, size, [](int i, int j) -> std::tuple<u_char, u_char, u_char> {
+							return std::make_tuple(
+									(to[0] + (from[0] - to[0]) * j/size) * 0xFF,
+									(to[1] + (from[1] - to[1]) * j/size) * 0xFF,
+									(to[2] + (from[2] - to[2]) * j/size) * 0xFF);
+						});
+
+						imageWindows.push_back(make_unique<ImageWindowState>(CreateImage(image, size, size).value()));
+						delete[] image;
+						generateImage = false;
+                    }
+                }
+					break;
+			}
+			ImGui::End();
+		}
+
+		if(showFileSelectRaw) {
+			ImGui::Begin("Chose File Raw");
+			static int rawWidth, rawHeight;
+			ImGui::InputInt("Raw Width", &rawWidth);
+			ImGui::InputInt("Raw Height", &rawHeight);
+			fs::path p;
+			if (SimpleFileNavigation(path, p)) {
+				auto imOpt = LoadImageFileRaw(p.string().c_str(), rawWidth, rawHeight);
+				if (imOpt.has_value()) {
+					auto val = imOpt.value();
+					imageWindows.push_back(make_unique<ImageWindowState>(val));
+					showFileSelect = false;
+				} else {
+					showFileSelectError = true;
+				}
+			}
+			ImGui::End();
+		}
+
 		if (ImGui::BeginMainMenuBar())
 		{
 			if (ImGui::BeginMenu("File"))
@@ -211,8 +317,24 @@ int main(int, char**)
 				if (ImGui::MenuItem("Open Raw", "Ctrl+O")) {
 					showFileSelectRaw = true;
 				}
-				if (ImGui::BeginPopup("Open Raw")) {
-					ImGui::EndPopup();
+				ImGui::EndMenu();
+			}
+
+			if (ImGui::BeginMenu("Generate"))
+			{
+				if (ImGui::MenuItem("Circle")) {
+					generateImage = true;
+					shape = CIRCLE;
+				}
+
+				if (ImGui::MenuItem("Square")) {
+					generateImage = true;
+					shape = SQUARE;
+				}
+
+				if (ImGui::MenuItem("Gradient")) {
+					generateImage = true;
+					shape = GRADIENT;
 				}
 				ImGui::EndMenu();
 			}

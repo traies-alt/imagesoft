@@ -6,6 +6,8 @@
 #include <fstream>
 #include <memory>
 #include <utility>
+#include <functional>
+#include <tuple>
 
 using namespace std;
 
@@ -126,3 +128,47 @@ bool ReloadImage(ImageWindowState * image) {
 	return true;
 }
 
+optional<ImageWindowState> CreateImage(unsigned char * pixels, int w, int h)
+{
+	GLuint texture_map;
+	glGenTextures(1, &texture_map);
+	glBindTexture(GL_TEXTURE_2D, texture_map);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	auto v = vector<IFilter*>();
+	IFilter * fil = new MainFilter(w, h);
+	fil->InitShader();
+	v.push_back(fil);
+
+	ImageWindowState im = {
+			texture_map,
+			w,
+			h,
+			1.0f,
+			string("Generated").c_str(),
+			imageID++,
+			pixels,
+			GL_RGB,
+			fs::current_path().string(),
+			move(v)
+	};
+	return make_optional(im);
+}
+
+void fillBuffer(unsigned char* buffer, int w, int h,
+		const std::function<std::tuple<u_char, u_char, u_char>(int, int)> &value) {
+	for (int i = 0; i < h; i++) {
+		for (int j = 0; j < w; j++) {
+			auto val = value(i, j);
+			buffer[3 * (i * w + j)] = std::get<0>(val);
+			buffer[3 * (i * w + j) + 1] = std::get<1>(val);
+			buffer[3 * (i * w + j) + 2] = std::get<2>(val);
+		}
+	}
+}
