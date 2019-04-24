@@ -169,6 +169,25 @@ struct ThresholdFilter: IFilter {
 	void ApplyFilter(GLuint prevTexture) override;
 };
 
+struct GlobalThresholdFilter: IFilter {
+    GLuint _textureSampler;
+    GLuint _glThreshold;
+    bool _thresholdChanged = true;
+    float _thresholdError = 0.1f;
+    float _initialThreshold[3] = {0.5f, 0.5f, 0.5f};
+    float _currentThreshold[3] = {0.5f, 0.5f, 0.5f};
+
+    GlobalThresholdFilter(int w, int h) {
+        _width = w;
+        _height = h;
+        _name = "Global Threshold";
+    }
+
+    void InitShader() override;
+    void RenderUI() override;
+    void ApplyFilter(GLuint prevTexture) override;
+};
+
 struct ContrastFilter: IFilter {
 	GLuint _textureSampler;
 	GLuint _glLower, _glLowerTo;

@@ -8,9 +8,7 @@ uniform vec3 threshold;
 void main() {
 	vec3 pixelData = texture( myTextureSampler, UV ).rgb;
 
-	if (pixelData.r < threshold.r && pixelData.g < threshold.g && pixelData.b < threshold.b) {
-		color = vec3(1, 1, 1);
-	} else {
-		color = vec3(0, 0, 0);
-	}
+	color.r = pixelData.r > threshold.r ? 1 : 0;
+	color.g = pixelData.g > threshold.g ? 1 : 0;
+	color.b = pixelData.b > threshold.b ? 1 : 0;
 }
