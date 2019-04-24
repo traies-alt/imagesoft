@@ -725,7 +725,7 @@ void CombinedMaskFilter::InitShader()
 	_glMaskDivision = glGetUniformLocation(_programID, "maskDivision");
 
 	glGenTextures(1, &_maskWeightsTexture1);
-	glGenTextures(2, &_maskWeightsTexture2);
+	glGenTextures(1, &_maskWeightsTexture2);
 	InitMask();
 }
 
