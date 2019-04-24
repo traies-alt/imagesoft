@@ -385,96 +385,61 @@ int main(int, char**)
 			}
 
 			if (ImGui::BeginPopup("Add Filter")) {
-				if (ImGui::Button("SingleBand")) {
-					IFilter * filter = new SingleBandFilter(im->width, im->height);
-					filter->InitShader();
-					im->filters.push_back(filter);
-					ImGui::CloseCurrentPopup();
-				}
-				if (ImGui::Button("Substract")) {
-					IFilter * filter = new SubstractionFilter(im->width, im->height);
-					filter->InitShader();
-					im->filters.push_back(filter);
-					ImGui::CloseCurrentPopup();
-				}
-				if (ImGui::Button("Negative")) {
-					IFilter * filter = new NegativeFilter(im->width, im->height);
-					filter->InitShader();
-					im->filters.push_back(filter);
-					ImGui::CloseCurrentPopup();
-				}
-				if (ImGui::Button("Scalar")) {
-					IFilter * filter = new ScalarFilter(im->width, im->height);
-					filter->InitShader();
-					im->filters.push_back(filter);
-					ImGui::CloseCurrentPopup();
-				}
-				if (ImGui::Button("DynamicRangeCompression")) {
-					IFilter * filter = new DynamicRangeCompressionFilter(im->width, im->height);
-					filter->InitShader();
-					im->filters.push_back(filter);
-					ImGui::CloseCurrentPopup();
-				}
-				if (ImGui::Button("Gamma")) {
-					IFilter * filter = new GammaFilter(im->width, im->height);
-					filter->InitShader();
-					im->filters.push_back(filter);
-					ImGui::CloseCurrentPopup();
-				}
-				if (ImGui::Button("Threshold")) {
-					IFilter * filter = new ThresholdFilter(im->width, im->height);
-					filter->InitShader();
-					im->filters.push_back(filter);
-					ImGui::CloseCurrentPopup();
-				}
-				if (ImGui::Button("Contrast")) {
-					IFilter * filter = new ContrastFilter(im->width, im->height);
-					filter->InitShader();
-					im->filters.push_back(filter);
-					ImGui::CloseCurrentPopup();
-				}
-				if (ImGui::Button("Equalization")) {
-					IFilter * filter = new EqualizationFilter(im->width, im->height);
-					filter->InitShader();
-					im->filters.push_back(filter);
-					ImGui::CloseCurrentPopup();
-				}
-				if (ImGui::Button("Exponential Noise")) {
-					IFilter * filter = new ExponentialNoiseFilter(im->width, im->height);
-					filter->InitShader();
-					im->filters.push_back(filter);
-					ImGui::CloseCurrentPopup();
-				}
-				if (ImGui::Button("Rayleigh Noise")) {
-					IFilter * filter = new RayleighNoiseFilter(im->width, im->height);
-					filter->InitShader();
-					im->filters.push_back(filter);
-					ImGui::CloseCurrentPopup();
-				}
-				if (ImGui::Button("Gaussian Noise")) {
-					IFilter * filter = new GaussianNoiseFilter(im->width, im->height);
-					filter->InitShader();
-					im->filters.push_back(filter);
-					ImGui::CloseCurrentPopup();
-				}
-				if (ImGui::Button("Salt and pepper Noise")) {
-					IFilter * filter = new SaltAndPepperNoiseFilter(im->width, im->height);
-					filter->InitShader();
-					im->filters.push_back(filter);
-					ImGui::CloseCurrentPopup();
-				}
-				if (ImGui::Button("Mean Filter")) {
-					IFilter * filter = new MeanFilter(im->width, im->height);
-					filter->InitShader();
-					im->filters.push_back(filter);
-					ImGui::CloseCurrentPopup();
-				}
-				if (ImGui::Button("Median Filter")) {
-					IFilter * filter = new MedianFilter(im->width, im->height);
-					filter->InitShader();
-					im->filters.push_back(filter);
-					ImGui::CloseCurrentPopup();
-				}
+
+				auto FilterButton = [&im](char * name, std::function<IFilter * (int width, int height)> constr) {
+					if (ImGui::Button(name)) {
+						IFilter * filter = constr(im->width, im->height);
+						filter->InitShader();
+						im->filters.push_back(filter);
+						ImGui::CloseCurrentPopup();
+					}
+				};
+
+				FilterButton("SingleBand", [](int width, int height){
+					return new SingleBandFilter(width, height);
+				});
+				FilterButton("Subtract", [](int width, int height){
+					return new SubstractionFilter(width, height);
+				});
+				FilterButton("Negative", [](int width, int height){
+					return new NegativeFilter(width, height);
+				});
+				FilterButton("Scalar", [](int width, int height){
+					return new ScalarFilter(width, height);
+				});
+				FilterButton("DynamicRangeCompression", [](int width, int height){
+					return new DynamicRangeCompressionFilter(width, height);
+				});
+				FilterButton("Gamma", [](int width, int height){
+					return new GammaFilter(width, height);
+				});
+				FilterButton("Threshold", [](int width, int height){
+					return new ThresholdFilter(width, height);
+				});
+				FilterButton("Contrast", [](int width, int height){
+					return new ContrastFilter(width, height);
+				});
+				FilterButton("Equalization", [](int width, int height){
+					return new EqualizationFilter(width, height);
+				});
+				FilterButton("ExponentialNoise", [](int width, int height){
+					return new ExponentialNoiseFilter(width, height);
+				});
+				FilterButton("RayleighNoise", [](int width, int height){
+					return new RayleighNoiseFilter(width, height);
+				});
+				FilterButton("GaussianNoise", [](int width, int height){
+					return new GaussianNoiseFilter(width, height);
+				});
+				FilterButton("SaltAndPepper", [](int width, int height){
+					return new SaltAndPepperNoiseFilter(width, height);
+				});
+				FilterButton("Mean", [](int width, int height){
+					return new MeanFilter(width, height);
+				});
+				FilterButton("Median", [](int width, int height){
+					return new MedianFilter(width, height);
+				});
 				ImGui::EndPopup();
 			}
 			ImGui::End();

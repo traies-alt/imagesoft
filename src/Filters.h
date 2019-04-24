@@ -21,7 +21,18 @@ struct IFilter {
 	GLuint _outputTexture;
 	virtual void InitShader() = 0;
 	virtual void RenderUI() = 0;
-	virtual GLuint ApplyFilter(GLuint prevTexture) = 0;
+	virtual void ApplyFilter(GLuint prevTexture) = 0;
+
+	GLuint Draw(GLuint prevTexture)
+	{
+		glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
+		glViewport(0,0,_width,_height);
+		glUseProgram(_programID);
+
+		ApplyFilter(prevTexture);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		return _outputTexture;
+	}
 };
 
 struct MainFilter: IFilter {
@@ -35,7 +46,7 @@ struct MainFilter: IFilter {
 
 	void InitShader() override;
 	void RenderUI() override;
-	GLuint ApplyFilter(GLuint prevTexture) override;
+	void ApplyFilter(GLuint prevTexture) override;
 };
 
 struct SingleBandFilter: IFilter {
@@ -51,7 +62,7 @@ struct SingleBandFilter: IFilter {
 
 	void InitShader() override;
 	void RenderUI() override;
-	GLuint ApplyFilter(GLuint prevTexture) override;
+	void ApplyFilter(GLuint prevTexture) override;
 };
 
 struct SubstractionFilter: IFilter {
@@ -73,7 +84,7 @@ struct SubstractionFilter: IFilter {
 
 	void InitShader() override;
 	void RenderUI() override;
-	GLuint ApplyFilter(GLuint prevTexture) override;
+	void ApplyFilter(GLuint prevTexture) override;
 };
 
 struct NegativeFilter: IFilter {
@@ -86,7 +97,7 @@ struct NegativeFilter: IFilter {
 
 	void InitShader() override;
 	void RenderUI() override;
-	GLuint ApplyFilter(GLuint prevTexture) override;
+	void ApplyFilter(GLuint prevTexture) override;
 };
 
 struct ScalarFilter: IFilter {
@@ -106,7 +117,7 @@ struct ScalarFilter: IFilter {
 
 	void InitShader() override;
 	void RenderUI() override;
-	GLuint ApplyFilter(GLuint prevTexture) override;
+	void ApplyFilter(GLuint prevTexture) override;
 };
 
 struct DynamicRangeCompressionFilter: IFilter {
@@ -123,7 +134,7 @@ struct DynamicRangeCompressionFilter: IFilter {
 
 	void InitShader() override;
 	void RenderUI() override;
-	GLuint ApplyFilter(GLuint prevTexture) override;
+	void ApplyFilter(GLuint prevTexture) override;
 };
 
 struct GammaFilter: IFilter {
@@ -139,7 +150,7 @@ struct GammaFilter: IFilter {
 
 	void InitShader() override;
 	void RenderUI() override;
-	GLuint ApplyFilter(GLuint prevTexture) override;
+	void ApplyFilter(GLuint prevTexture) override;
 };
 
 struct ThresholdFilter: IFilter {
@@ -154,7 +165,7 @@ struct ThresholdFilter: IFilter {
 
 	void InitShader() override;
 	void RenderUI() override;
-	GLuint ApplyFilter(GLuint prevTexture) override;
+	void ApplyFilter(GLuint prevTexture) override;
 };
 
 struct ContrastFilter: IFilter {
@@ -175,7 +186,7 @@ struct ContrastFilter: IFilter {
 
 	void InitShader() override;
 	void RenderUI() override;
-	GLuint ApplyFilter(GLuint prevTexture) override;
+	void ApplyFilter(GLuint prevTexture) override;
 };
 
 struct EqualizationFilter: IFilter {
@@ -192,7 +203,7 @@ struct EqualizationFilter: IFilter {
 
 	void InitShader() override;
 	void RenderUI() override;
-	GLuint ApplyFilter(GLuint prevTexture) override;
+	void ApplyFilter(GLuint prevTexture) override;
 };
 
 struct ExponentialNoiseFilter: IFilter {
@@ -212,7 +223,7 @@ struct ExponentialNoiseFilter: IFilter {
 
 	void InitShader() override;
 	void RenderUI() override;
-	GLuint ApplyFilter(GLuint prevTexture) override;
+	void ApplyFilter(GLuint prevTexture) override;
 };
 
 struct RayleighNoiseFilter: IFilter {
@@ -232,7 +243,7 @@ struct RayleighNoiseFilter: IFilter {
 
 	void InitShader() override;
 	void RenderUI() override;
-	GLuint ApplyFilter(GLuint prevTexture) override;
+	void ApplyFilter(GLuint prevTexture) override;
 };
 
 struct GaussianNoiseFilter: IFilter {
@@ -256,7 +267,7 @@ struct GaussianNoiseFilter: IFilter {
 
 	void InitShader() override;
 	void RenderUI() override;
-	GLuint ApplyFilter(GLuint prevTexture) override;
+	void ApplyFilter(GLuint prevTexture) override;
 };
 
 struct SaltAndPepperNoiseFilter: IFilter {
@@ -277,7 +288,7 @@ struct SaltAndPepperNoiseFilter: IFilter {
 
 	void InitShader() override;
 	void RenderUI() override;
-	GLuint ApplyFilter(GLuint prevTexture) override;
+	void ApplyFilter(GLuint prevTexture) override;
 };
 
 struct MeanFilter: IFilter {
@@ -305,7 +316,7 @@ struct MeanFilter: IFilter {
 
 	void InitShader() override;
 	void RenderUI() override;
-	GLuint ApplyFilter(GLuint prevTexture) override;
+	void ApplyFilter(GLuint prevTexture) override;
 	void InitMask();
 };
 
@@ -333,6 +344,6 @@ struct MedianFilter: IFilter {
 
 	void InitShader() override;
 	void RenderUI() override;
-	GLuint ApplyFilter(GLuint prevTexture) override;
+	void ApplyFilter(GLuint prevTexture) override;
 	void InitMask();
 };

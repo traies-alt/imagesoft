@@ -83,6 +83,13 @@ void DrawTexturedTriangles(GLuint ogTexture, GLuint nextShaderTextureSampler)
 	glFlush();
 }
 
+void ApplyTexture(GLuint programId, GLuint textureId, GLuint samplerId) 
+{
+	glUseProgram(programId);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, textureId);
+	glUniform1i(samplerId, 1);
+}
 
 void MainFilter::InitShader()
 {
@@ -97,15 +104,9 @@ void MainFilter::InitShader()
 
 void MainFilter::RenderUI(){}
 
-GLuint MainFilter::ApplyFilter(GLuint prevTexture)
+void MainFilter::ApplyFilter(GLuint prevTexture)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
-	glViewport(0,0,_width,_height);
-	glUseProgram(_programID);
 	DrawTexturedTriangles(prevTexture, _textureSampler);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	return _outputTexture;
 }
 
 void SingleBandFilter::InitShader()
@@ -132,16 +133,10 @@ void SingleBandFilter::RenderUI(){
 	}
 }
 
-GLuint SingleBandFilter::ApplyFilter(GLuint prevTexture)
+void SingleBandFilter::ApplyFilter(GLuint prevTexture)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
-	glViewport(0,0,_width,_height);
-	glUseProgram(_programID);
 	glUniform1i(_glBand, _band);
 	DrawTexturedTriangles(prevTexture, _textureSampler);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	return _outputTexture;
 }
 
 
@@ -183,10 +178,7 @@ void SubstractionFilter::RenderUI()
 				SOIL_FLAG_MIPMAPS
 			);
 			if (_secondTex != 0) {
-				glUseProgram(_programID);
-				glActiveTexture(GL_TEXTURE1);
-				glBindTexture(GL_TEXTURE_2D, _secondTex);
-				glUniform1i(_secondSampler, 1);
+				ApplyTexture(_programID, _secondTex, _secondSampler);
 				ImGui::CloseCurrentPopup();
 			}
 		}
@@ -202,17 +194,10 @@ void SubstractionFilter::RenderUI()
 	ImGui::Text("Min: %f %f %f, Max: %f %f %f", _min[0], _min[1], _min[2], _max[0], _max[1], _max[2]);
 }
 
-GLuint SubstractionFilter::ApplyFilter(GLuint prevTexture)
+void SubstractionFilter::ApplyFilter(GLuint prevTexture)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
-	glViewport(0,0,_width,_height);
-	glUseProgram(_programID);
-
 	glUniform1i(_factor, _subtract ? -1 : 1);
 	DrawTexturedTriangles(prevTexture, _textureSampler);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	return _outputTexture;
 }
 
 void NegativeFilter::InitShader()
@@ -229,15 +214,9 @@ void NegativeFilter::RenderUI()
 {
 }
 
-GLuint NegativeFilter::ApplyFilter(GLuint prevTexture)
+void NegativeFilter::ApplyFilter(GLuint prevTexture)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
-	glViewport(0,0,_width,_height);
-	glUseProgram(_programID);
 	DrawTexturedTriangles(prevTexture, _textureSampler);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	return _outputTexture;
 }
 
 void ScalarFilter::InitShader()
@@ -274,11 +253,8 @@ void ScalarFilter::RenderUI()
 	}
 }
 
-GLuint ScalarFilter::ApplyFilter(GLuint prevTexture)
+void ScalarFilter::ApplyFilter(GLuint prevTexture)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
-	glViewport(0,0,_width,_height);
-	glUseProgram(_programID);
 	if (_dynamicRange) {
 		unsigned char _minr, _ming, _minb, _maxr, _maxg, _maxb;
 		GetMinMaxRGB(prevTexture, _width, _height, _minr, _ming, _minb, _maxr, _maxg, _maxb);
@@ -288,9 +264,7 @@ GLuint ScalarFilter::ApplyFilter(GLuint prevTexture)
 		glUniform3f(_glC, cr, cg, cb);
 	}
 	DrawTexturedTriangles(prevTexture, _textureSampler);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	return _outputTexture;
 }
 
 void DynamicRangeCompressionFilter::InitShader()
@@ -309,11 +283,8 @@ void DynamicRangeCompressionFilter::RenderUI()
 	ImGui::Checkbox("Calc. min/maxes every frame?", &_calcToggle);
 }
 
-GLuint DynamicRangeCompressionFilter::ApplyFilter(GLuint prevTexture)
+void DynamicRangeCompressionFilter::ApplyFilter(GLuint prevTexture)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
-	glViewport(0,0,_width,_height);
-	glUseProgram(_programID);
 	if (_calcToggle) {
 		GetMinMaxRGB(prevTexture, _width, _height, _minr, _ming, _minb, _maxr, _maxg, _maxb);
 		float cr = 1.0 / (log(1.0 + _maxr / 255.0)),
@@ -324,9 +295,7 @@ GLuint DynamicRangeCompressionFilter::ApplyFilter(GLuint prevTexture)
 	}
 
 	DrawTexturedTriangles(prevTexture, _textureSampler);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	return _outputTexture;
 }
 
 void GammaFilter::InitShader()
@@ -350,16 +319,11 @@ void GammaFilter::RenderUI()
 	}
 }
 
-GLuint GammaFilter::ApplyFilter(GLuint prevTexture)
+void GammaFilter::ApplyFilter(GLuint prevTexture)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
-	glViewport(0,0,_width,_height);
-	glUseProgram(_programID);
 
 	DrawTexturedTriangles(prevTexture, _textureSampler);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	return _outputTexture;
 }
 
 void ThresholdFilter::InitShader()
@@ -383,15 +347,10 @@ void ThresholdFilter::RenderUI()
 	}
 }
 
-GLuint ThresholdFilter::ApplyFilter(GLuint prevTexture)
+void ThresholdFilter::ApplyFilter(GLuint prevTexture)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
-	glViewport(0,0,_width,_height);
-	glUseProgram(_programID);
 	DrawTexturedTriangles(prevTexture, _textureSampler);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	return _outputTexture;
 }
 
 void ContrastFilter::InitShader()
@@ -433,15 +392,10 @@ void ContrastFilter::RenderUI()
 	}
 }
 
-GLuint ContrastFilter::ApplyFilter(GLuint prevTexture)
+void ContrastFilter::ApplyFilter(GLuint prevTexture)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
-	glViewport(0,0,_width,_height);
-	glUseProgram(_programID);
 	DrawTexturedTriangles(prevTexture, _textureSampler);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	return _outputTexture;
 }
 
 
@@ -483,11 +437,8 @@ void EqualizationFilter::RenderUI()
 	}
 }
 
-GLuint EqualizationFilter::ApplyFilter(GLuint prevTexture)
+void EqualizationFilter::ApplyFilter(GLuint prevTexture)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
-	glViewport(0,0,_width,_height);
-	glUseProgram(_programID);
 	
 	if (_eqCalcTexture){
 		float hr[256] = { 0 }, hg[256] = { 0 }, hb[256] = { 0 } ;
@@ -516,9 +467,7 @@ GLuint EqualizationFilter::ApplyFilter(GLuint prevTexture)
 	glBindTexture(GL_TEXTURE_1D, _eqTexture);
 	glUniform1i(_eqSampler, 1);
 	DrawTexturedTriangles(prevTexture, _textureSampler);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	return _outputTexture;
 }
 
 void ExponentialNoiseFilter::InitShader()
@@ -559,18 +508,13 @@ void ExponentialNoiseFilter::RenderUI()
 
 }
 
-GLuint ExponentialNoiseFilter::ApplyFilter(GLuint prevTexture)
+void ExponentialNoiseFilter::ApplyFilter(GLuint prevTexture)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
-	glViewport(0,0,_width,_height);
-	glUseProgram(_programID);
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, _randomTex);
 	glUniform1f(_randomSampler, 1);
 	DrawTexturedTriangles(prevTexture, _textureSampler);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	return _outputTexture;
 }
 
 void RayleighNoiseFilter::InitShader()
@@ -610,18 +554,13 @@ void RayleighNoiseFilter::RenderUI()
 	}
 }
 
-GLuint RayleighNoiseFilter::ApplyFilter(GLuint prevTexture)
+void RayleighNoiseFilter::ApplyFilter(GLuint prevTexture)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
-	glViewport(0,0,_width,_height);
-	glUseProgram(_programID);
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, _randomTex);
 	glUniform1f(_randomSampler, 1);
 	DrawTexturedTriangles(prevTexture, _textureSampler);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	return _outputTexture;
 }
 
 void GaussianNoiseFilter::InitShader()
@@ -680,11 +619,8 @@ void GaussianNoiseFilter::RenderUI()
 	}
 }
 
-GLuint GaussianNoiseFilter::ApplyFilter(GLuint prevTexture)
+void GaussianNoiseFilter::ApplyFilter(GLuint prevTexture)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
-	glViewport(0,0,_width,_height);
-	glUseProgram(_programID);
 	
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, _randomTex);
@@ -695,9 +631,7 @@ GLuint GaussianNoiseFilter::ApplyFilter(GLuint prevTexture)
 	glUniform1i(_randomSampler2, 2);
 
 	DrawTexturedTriangles(prevTexture, _textureSampler);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	return _outputTexture;
 }
 
 void SaltAndPepperNoiseFilter::InitShader()
@@ -742,20 +676,15 @@ void SaltAndPepperNoiseFilter::RenderUI()
 	}
 }
 
-GLuint SaltAndPepperNoiseFilter::ApplyFilter(GLuint prevTexture)
+void SaltAndPepperNoiseFilter::ApplyFilter(GLuint prevTexture)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
-	glViewport(0,0,_width,_height);
-	glUseProgram(_programID);
 	
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, _randomTex);
 	glUniform1i(_randomSampler, 1);
 
 	DrawTexturedTriangles(prevTexture, _textureSampler);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	return _outputTexture;
 }
 
 void MeanFilter::InitMask()
@@ -854,20 +783,15 @@ void MeanFilter::RenderUI()
 	}
 }
 
-GLuint MeanFilter::ApplyFilter(GLuint prevTexture)
+void MeanFilter::ApplyFilter(GLuint prevTexture)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
-	glViewport(0,0,_width,_height);
-
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, _maskWeightsTexture);
 	glUniform1i(_glMaskSampler, 1);
 
 	glUseProgram(_programID);
 	DrawTexturedTriangles(prevTexture, _textureSampler);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	return _outputTexture;
 }
 
 void MedianFilter::InitMask()
@@ -922,18 +846,8 @@ void MedianFilter::RenderUI()
 	}
 }
 
-GLuint MedianFilter::ApplyFilter(GLuint prevTexture)
+void MedianFilter::ApplyFilter(GLuint prevTexture)
 {
-	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
-	glViewport(0,0,_width,_height);
-
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, _maskWeightsTexture);
-	glUniform1i(_glMaskSampler, 1);
-
-	glUseProgram(_programID);
+	ApplyTexture(_programID, _maskWeightsTexture, _glMaskSampler);
 	DrawTexturedTriangles(prevTexture, _textureSampler);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	return _outputTexture;
 }
