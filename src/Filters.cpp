@@ -687,7 +687,7 @@ void SaltAndPepperNoiseFilter::ApplyFilter(GLuint prevTexture)
 
 }
 
-void MeanFilter::InitMask()
+void MaskFilter::InitMask()
 {
 	_maskWeightsTexture = WeightedTexture(_maskSize, _weights, _maskWeightsTexture);
 	glUseProgram(_programID);
@@ -701,7 +701,7 @@ void MeanFilter::InitMask()
 	glUniform1i(_glMaskSampler, 1);
 }
 
-void MeanFilter::InitShader()
+void MaskFilter::InitShader()
 {
 	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/Mask.frag");
 	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
@@ -724,7 +724,7 @@ float GaussianWeight(float x, float y, float sqrSigma)
 	return exp(-(x * x + y * y) / 2 * (sqrSigma)) / (1.0 / (2 * M_PI * sqrSigma));
 }
 
-void MeanFilter::RenderUI()
+void MaskFilter::RenderUI()
 {
 	bool maskChanged = false;
 	maskChanged |= ImGui::InputInt("Mask Size", &_maskSize);
@@ -738,6 +738,17 @@ void MeanFilter::RenderUI()
 		ImGui::Text("");
 	}
 	ImGui::PopItemWidth();
+
+	if (maskChanged){
+		InitMask();
+	}
+}
+
+void MeanFilter::RenderUI()
+{
+	MaskFilter::RenderUI();
+	bool maskChanged = false;
+
 	if (ImGui::Button("High pass")) {
 		maskChanged = true;
 		_maskDivision = _maskSize * _maskSize;
@@ -768,8 +779,8 @@ void MeanFilter::RenderUI()
 		_maskDivision = 0;
 		for (float i = 0; i < _maskSize; i++) {
 			for (float j = 0; j < _maskSize; j++) {
-				float normalX = i / (_maskSize - 1) - 0.5; 
-				float normalY = j / (_maskSize - 1) - 0.5; 
+				float normalX = i / (_maskSize - 1) - 0.5;
+				float normalY = j / (_maskSize - 1) - 0.5;
 				float w = GaussianWeight(normalX, normalY, sqrSigma);
 				_maskDivision += w;
 				_weights[(int)(i * _maskSize + j)] = w;
@@ -778,12 +789,116 @@ void MeanFilter::RenderUI()
 	}
 	ImGui::SameLine();
 	ImGui::InputFloat("Sigma", &_sigma);
+
 	if (maskChanged){
 		InitMask();
 	}
 }
 
-void MeanFilter::ApplyFilter(GLuint prevTexture)
+void BorderFilter::RenderUI()
+{
+	MaskFilter::RenderUI();
+	bool maskChanged = false;
+
+	if (ImGui::Button("Roberts Horizontal")) {
+		maskChanged = true;
+		_maskSize = 2;
+		_maskDivision = 1;
+		for (int i = 0; i < _maskSize; i++) {
+			for (int j = 0; j < _maskSize; j++) {
+				if(j!=i) {
+					_weights[i * _maskSize + j] = 0;
+				} else if(i==0){
+					_weights[i * _maskSize + j] = 1;
+				} else {
+					_weights[i * _maskSize + j] = -1;
+				}
+			}
+		}
+	}
+
+	ImGui::SameLine();
+
+	if (ImGui::Button("Roberts Vertical")) {
+		maskChanged = true;
+		_maskSize = 2;
+		_maskDivision = 1;
+		for (int i = 0; i < _maskSize; i++) {
+			for (int j = 0; j < _maskSize; j++) {
+				if(j==i) {
+					_weights[i * _maskSize + j] = 0;
+				} else if(i==0){
+					_weights[i * _maskSize + j] = 1;
+				} else {
+					_weights[i * _maskSize + j] = -1;
+				}
+			}
+		}
+	}
+
+	if (ImGui::Button("Prewitt Horizontal")) {
+		maskChanged = true;
+		_maskSize = 3;
+		_maskDivision = 1;
+		for (int i = 0; i < _maskSize; i++) {
+			for (int j = 0; j < _maskSize; j++) {
+				_weights[i * _maskSize + j] = i - 1;
+			}
+		}
+	}
+
+	ImGui::SameLine();
+
+	if (ImGui::Button("Prewitt Vertical")) {
+		maskChanged = true;
+		_maskSize = 3;
+		_maskDivision = 1;
+		for (int i = 0; i < _maskSize; i++) {
+			for (int j = 0; j < _maskSize; j++) {
+				_weights[i * _maskSize + j] = j - 1;
+			}
+		}
+	}
+
+	if (ImGui::Button("Sobel Horizontal")) {
+		maskChanged = true;
+		_maskSize = 3;
+		_maskDivision = 1;
+		for (int i = 0; i < _maskSize; i++) {
+			for (int j = 0; j < _maskSize; j++) {
+				if(j==1) {
+					_weights[i * _maskSize + j] = (i - 1)*2;
+				} else {
+					_weights[i * _maskSize + j] = i - 1;
+				}
+			}
+		}
+	}
+
+	ImGui::SameLine();
+
+	if (ImGui::Button("Sobel Vertical")) {
+		maskChanged = true;
+		_maskSize = 3;
+		_maskDivision = 1;
+		for (int i = 0; i < _maskSize; i++) {
+			for (int j = 0; j < _maskSize; j++) {
+				if(i==1) {
+					_weights[i * _maskSize + j] = (j - 1)*2;
+				} else {
+					_weights[i * _maskSize + j] = j - 1;
+				}
+			}
+		}
+	}
+
+
+	if (maskChanged){
+		InitMask();
+	}
+}
+
+void MaskFilter::ApplyFilter(GLuint prevTexture)
 {
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, _maskWeightsTexture);
@@ -791,7 +906,6 @@ void MeanFilter::ApplyFilter(GLuint prevTexture)
 
 	glUseProgram(_programID);
 	DrawTexturedTriangles(prevTexture, _textureSampler);
-
 }
 
 void MedianFilter::InitMask()
