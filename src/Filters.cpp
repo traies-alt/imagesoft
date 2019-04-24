@@ -7,6 +7,7 @@
 #include "ShaderLayer.h"
 #define _USE_MATH_DEFINES
 #include <math.h>
+#include "KnownMask.h"
 
 static GLuint vertexbuffer;
 static GLuint uvbuffer;
@@ -83,12 +84,16 @@ void DrawTexturedTriangles(GLuint ogTexture, GLuint nextShaderTextureSampler)
 	glFlush();
 }
 
-void ApplyTexture(GLuint programId, GLuint textureId, GLuint samplerId) 
+void ApplyTextureNumber(GLuint programId, GLuint textureId, GLuint samplerId, GLenum textureEnum, int textureNumber)
 {
 	glUseProgram(programId);
-	glActiveTexture(GL_TEXTURE1);
+	glActiveTexture(textureEnum);
 	glBindTexture(GL_TEXTURE_2D, textureId);
-	glUniform1i(samplerId, 1);
+	glUniform1i(samplerId, textureNumber);
+}
+
+void ApplyTexture(GLuint programId, GLuint textureId, GLuint samplerId) {
+	ApplyTextureNumber(programId, textureId, samplerId, GL_TEXTURE1, 1);
 }
 
 void MainFilter::InitShader()
@@ -143,7 +148,7 @@ void SingleBandFilter::ApplyFilter(GLuint prevTexture)
 void SubstractionFilter::InitShader()
 {
 	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/Substract.frag");
-	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
+	_textureSampler = static_cast<GLuint>(glGetUniformLocation(_programID, "myTextureSampler"));
 	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
 		std::cout << "Error rendering to texture." << std::endl;
 		return;
@@ -621,7 +626,7 @@ void GaussianNoiseFilter::RenderUI()
 
 void GaussianNoiseFilter::ApplyFilter(GLuint prevTexture)
 {
-	
+
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, _randomTex);
 	glUniform1i(_randomSampler, 1);
@@ -686,6 +691,189 @@ void SaltAndPepperNoiseFilter::ApplyFilter(GLuint prevTexture)
 	DrawTexturedTriangles(prevTexture, _textureSampler);
 
 }
+
+void CombinedMaskFilter::InitMask()
+{
+	_maskWeightsTexture1 = WeightedTexture(_maskSize1, _weights1, _maskWeightsTexture1);
+	_maskWeightsTexture2 = WeightedTexture(_maskSize2, _weights2, _maskWeightsTexture2);
+	glUseProgram(_programID);
+	glUniform1f(_glMaskSize1, _maskSize1);
+	glUniform1f(_glMaskSize2, _maskSize2);
+	glUniform1f(_glWidth, _width);
+	glUniform1f(_glHeight, _height);
+	glUniform1f(_glMaskDivision, _maskDivision);
+
+
+	ApplyTextureNumber(_programID, _maskWeightsTexture1, _glMaskSampler1, GL_TEXTURE1, 1);
+	ApplyTextureNumber(_programID, _maskWeightsTexture2, _glMaskSampler2, GL_TEXTURE2, 2);
+}
+
+void CombinedMaskFilter::InitShader()
+{
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/CombinedMask.frag");
+	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
+	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+	_glMaskSize1 = glGetUniformLocation(_programID, "maskSize1");
+	_glMaskSize2 = glGetUniformLocation(_programID, "maskSize2");
+	_glWidth = glGetUniformLocation(_programID, "width");
+	_glHeight = glGetUniformLocation(_programID, "height");
+	_glMaskSampler1 = glGetUniformLocation(_programID, "maskWeights1");
+	_glMaskSampler2 = glGetUniformLocation(_programID, "maskWeights2");
+	_glMaskDivision = glGetUniformLocation(_programID, "maskDivision");
+
+	glGenTextures(1, &_maskWeightsTexture1);
+	glGenTextures(2, &_maskWeightsTexture2);
+	InitMask();
+}
+
+void CombinedMaskFilter::ApplyFilter(GLuint prevTexture)
+{
+	ApplyTextureNumber(_programID, _maskWeightsTexture1, _glMaskSampler1, GL_TEXTURE1, 1);
+	DrawTexturedTriangles(prevTexture, _textureSampler);
+
+	ApplyTextureNumber(_programID, _maskWeightsTexture2, _glMaskSampler2, GL_TEXTURE2, 2);
+	DrawTexturedTriangles(prevTexture, _textureSampler);
+}
+
+void BorderFilter::RenderUI()
+{
+	bool maskChanged = false;
+	maskChanged |= ImGui::InputInt("Mask Size", &_maskSize1);
+	maskChanged |= ImGui::InputFloat("Mask division", &_maskDivision);
+	ImGui::PushItemWidth(50);
+	for (int i = 0; i < _maskSize1; i++) {
+		for (int j = 0; j < _maskSize1; j++) {
+			maskChanged |= ImGui::InputFloat(string("Mask Row").append(to_string(i * _maskSize1 + j)).c_str(), &_weights1[i * _maskSize1 + j]);
+			ImGui::SameLine();
+		}
+		ImGui::Text("");
+	}
+	ImGui::PopItemWidth();
+	ImGui::Text("");
+
+
+	if (maskChanged){
+		InitMask();
+	}
+
+	if(_showSecondMask) {
+		maskChanged |= ImGui::InputInt("Mask Size", &_maskSize2);
+		maskChanged |= ImGui::InputFloat("Mask division", &_maskDivision);
+		ImGui::PushItemWidth(50);
+		for (int i = 0; i < _maskSize2; i++) {
+			for (int j = 0; j < _maskSize2; j++) {
+				maskChanged |= ImGui::InputFloat(string("Mask Row").append(to_string(i * _maskSize2 + j)).c_str(),
+												 &_weights2[i * _maskSize2 + j]);
+				ImGui::SameLine();
+			}
+			ImGui::Text("");
+		}
+		ImGui::PopItemWidth();
+
+		if (maskChanged) {
+			InitMask();
+		}
+		ImGui::Text("");
+	}
+
+	if (ImGui::Button("Roberts Horizontal")) {
+		maskChanged = true;
+		_showSecondMask = false;
+		_maskDivision = 1;
+		setupRobertsHorizontal(&_maskSize1, _weights1);
+		_maskSize2 = _maskSize1;
+		clearMask(_maskSize1, _weights2);
+	}
+
+	ImGui::SameLine();
+
+	if (ImGui::Button("Roberts Vertical")) {
+        maskChanged = true;
+        _showSecondMask = false;
+        _maskDivision = 1;
+        setupRobertsVertical(&_maskSize1, _weights1);
+		_maskSize2 = _maskSize1;
+		clearMask(_maskSize1, _weights2);	}
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("Roberts Combined")) {
+        maskChanged = true;
+        _showSecondMask = true;
+        _maskDivision = 1;
+        setupRobertsHorizontal(&_maskSize1, _weights1);
+        setupRobertsVertical(&_maskSize2, _weights2);
+    }
+
+    if (ImGui::Button("Prewitt Horizontal")) {
+        maskChanged = true;
+        _showSecondMask = false;
+        _maskDivision = 1;
+        setupPrewittHorizontal(&_maskSize1, _weights1);
+		_maskSize2 = _maskSize1;
+		clearMask(_maskSize1, _weights2);
+	}
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("Prewitt Vertical")) {
+        maskChanged = true;
+        _showSecondMask = false;
+        _maskDivision = 1;
+        setupPrewittVertical(&_maskSize1, _weights1);
+		_maskSize2 = _maskSize1;
+		clearMask(_maskSize1, _weights2);
+	}
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("Prewitt Combined")) {
+        maskChanged = true;
+        _showSecondMask = true;
+        _maskDivision = 1;
+        setupPrewittHorizontal(&_maskSize1, _weights1);
+        setupPrewittVertical(&_maskSize2, _weights2);
+    }
+
+    if (ImGui::Button("Sobel Horizontal")) {
+        maskChanged = true;
+        _showSecondMask = false;
+        _maskDivision = 1;
+        setupSobelHorizontal(&_maskSize1, _weights1);
+		_maskSize2 = _maskSize1;
+		clearMask(_maskSize1, _weights2);
+	}
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("Sobel Vertical")) {
+        maskChanged = true;
+        _showSecondMask = false;
+        _maskDivision = 1;
+        setupSobelVertical(&_maskSize1, _weights1);
+		_maskSize2 = _maskSize1;
+		clearMask(_maskSize1, _weights2);
+	}
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("Sobel Combined")) {
+        maskChanged = true;
+        _showSecondMask = true;
+        _maskDivision = 1;
+        setupSobelHorizontal(&_maskSize1, _weights1);
+        setupSobelVertical(&_maskSize2, _weights2);
+    }
+
+	if (maskChanged){
+		InitMask();
+	}
+}
+
+
 
 void MaskFilter::InitMask()
 {
@@ -789,109 +977,6 @@ void MeanFilter::RenderUI()
 	}
 	ImGui::SameLine();
 	ImGui::InputFloat("Sigma", &_sigma);
-
-	if (maskChanged){
-		InitMask();
-	}
-}
-
-void BorderFilter::RenderUI()
-{
-	MaskFilter::RenderUI();
-	bool maskChanged = false;
-
-	if (ImGui::Button("Roberts Horizontal")) {
-		maskChanged = true;
-		_maskSize = 2;
-		_maskDivision = 1;
-		for (int i = 0; i < _maskSize; i++) {
-			for (int j = 0; j < _maskSize; j++) {
-				if(j!=i) {
-					_weights[i * _maskSize + j] = 0;
-				} else if(i==0){
-					_weights[i * _maskSize + j] = 1;
-				} else {
-					_weights[i * _maskSize + j] = -1;
-				}
-			}
-		}
-	}
-
-	ImGui::SameLine();
-
-	if (ImGui::Button("Roberts Vertical")) {
-		maskChanged = true;
-		_maskSize = 2;
-		_maskDivision = 1;
-		for (int i = 0; i < _maskSize; i++) {
-			for (int j = 0; j < _maskSize; j++) {
-				if(j==i) {
-					_weights[i * _maskSize + j] = 0;
-				} else if(i==0){
-					_weights[i * _maskSize + j] = 1;
-				} else {
-					_weights[i * _maskSize + j] = -1;
-				}
-			}
-		}
-	}
-
-	if (ImGui::Button("Prewitt Horizontal")) {
-		maskChanged = true;
-		_maskSize = 3;
-		_maskDivision = 1;
-		for (int i = 0; i < _maskSize; i++) {
-			for (int j = 0; j < _maskSize; j++) {
-				_weights[i * _maskSize + j] = i - 1;
-			}
-		}
-	}
-
-	ImGui::SameLine();
-
-	if (ImGui::Button("Prewitt Vertical")) {
-		maskChanged = true;
-		_maskSize = 3;
-		_maskDivision = 1;
-		for (int i = 0; i < _maskSize; i++) {
-			for (int j = 0; j < _maskSize; j++) {
-				_weights[i * _maskSize + j] = j - 1;
-			}
-		}
-	}
-
-	if (ImGui::Button("Sobel Horizontal")) {
-		maskChanged = true;
-		_maskSize = 3;
-		_maskDivision = 1;
-		for (int i = 0; i < _maskSize; i++) {
-			for (int j = 0; j < _maskSize; j++) {
-				if(j==1) {
-					_weights[i * _maskSize + j] = (i - 1)*2;
-				} else {
-					_weights[i * _maskSize + j] = i - 1;
-				}
-			}
-		}
-	}
-
-	ImGui::SameLine();
-
-	if (ImGui::Button("Sobel Vertical")) {
-		maskChanged = true;
-		_maskSize = 3;
-		_maskDivision = 1;
-		for (int i = 0; i < _maskSize; i++) {
-			for (int j = 0; j < _maskSize; j++) {
-				if(i==1) {
-					_weights[i * _maskSize + j] = (j - 1)*2;
-				} else {
-					_weights[i * _maskSize + j] = j - 1;
-				}
-			}
-		}
-	}
-
 
 	if (maskChanged){
 		InitMask();

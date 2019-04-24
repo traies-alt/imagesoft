@@ -291,6 +291,44 @@ struct SaltAndPepperNoiseFilter: IFilter {
 	void ApplyFilter(GLuint prevTexture) override;
 };
 
+struct CombinedMaskFilter: IFilter{
+    GLuint _textureSampler;
+    GLuint _glWidth, _glHeight;
+    GLuint _glMaskSize1;
+    GLuint _glMaskSize2;
+    GLuint _glMaskSampler1;
+    GLuint _glMaskSampler2;
+    GLuint _maskWeightsTexture1;
+    GLuint _maskWeightsTexture2;
+    GLuint _glMaskDivision;
+
+    int _maskSize1 = 3;
+    int _maskSize2 = 3;
+    float  * _weights1;
+    float  * _weights2;
+    float _sigma = 1;
+    float _maskDivision = 9;
+
+    CombinedMaskFilter(int w, int h, char* name) {
+        _width = w;
+        _height = h;
+        _name = name;
+        _weights1 = new float[100];
+        for (int i = 0; i < 100; i++) {
+            _weights1[i] = 1;
+        }
+
+        _weights2 = new float[100];
+        for (int i = 0; i < 100; i++) {
+            _weights2[i] = 1;
+        }
+    }
+
+    void InitShader() override;
+    void ApplyFilter(GLuint prevTexture) override;
+    void InitMask();
+};
+
 struct MaskFilter: IFilter {
 	GLuint _textureSampler;
 	GLuint _glMaskSize;
@@ -304,10 +342,10 @@ struct MaskFilter: IFilter {
 	float _sigma = 1;
 	float _maskDivision = 9;
 
-    MaskFilter(int w, int h) {
+    MaskFilter(int w, int h, char* name) {
 		_width = w;
 		_height = h;
-		_name = "Mean Filter";
+		_name = name;
 		_weights = new float[100];
 		for (int i = 0; i < 100; i++) {
 			_weights[i] = 1;
@@ -322,14 +360,16 @@ struct MaskFilter: IFilter {
 
 struct MeanFilter: MaskFilter {
 
-    MeanFilter(int w, int h): MaskFilter(w,h) { }
+    MeanFilter(int w, int h): MaskFilter(w, h, const_cast<char *>("Mean Filter")) { }
 
     void RenderUI() override;
 };
 
-struct BorderFilter: MaskFilter {
+struct BorderFilter: CombinedMaskFilter {
 
-    BorderFilter(int w, int h): MaskFilter(w,h) { }
+    bool _showSecondMask = true;
+
+    BorderFilter(int w, int h): CombinedMaskFilter(w,h, const_cast<char *>("BorderFilter")) { }
 
     void RenderUI() override;
 };
