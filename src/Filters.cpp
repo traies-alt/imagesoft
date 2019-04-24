@@ -939,7 +939,6 @@ void MaskFilter::InitShader()
 	_glHeight = glGetUniformLocation(_programID, "height");
 	_glMaskSampler = glGetUniformLocation(_programID, "maskWeights");
 	_glMaskDivision = glGetUniformLocation(_programID, "maskDivision");
-	
 	glGenTextures(1, &_maskWeightsTexture);
 	InitMask();
 }
@@ -1086,4 +1085,68 @@ void MedianFilter::ApplyFilter(GLuint prevTexture)
 {
 	ApplyTexture(_programID, _maskWeightsTexture, _glMaskSampler);
 	DrawTexturedTriangles(prevTexture, _textureSampler);
+}
+
+void LaplaceFilter::InitShader()
+{
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/LaplaceSecondPassMask.frag");
+	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
+	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+
+	_glWidth = glGetUniformLocation(_programID, "width");	
+
+	_firstPassProgramID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/LaplaceFirstPassMask.frag");
+	_firstPassTextureSampler = glGetUniformLocation(_firstPassProgramID, "myTextureSampler");
+	if (!InitOutputTexture(_width, _height, _firstPassFrameBuffer, _firstPassTexture)) {
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+	_glMaskSize = glGetUniformLocation(_firstPassProgramID, "maskSize");	
+	_glWidthFirstPass = glGetUniformLocation(_firstPassProgramID, "width");	
+	_glHeightFirstPass = glGetUniformLocation(_firstPassProgramID, "height");
+	_glMaskSampler = glGetUniformLocation(_firstPassProgramID, "maskWeights");
+	_glMaskDivision = glGetUniformLocation(_firstPassProgramID, "maskDivision");
+	
+	glGenTextures(1, &_maskWeightsTexture);
+	InitMask();
+}
+
+void LaplaceFilter::InitMask()
+{
+	float weights[] = {0, -1, 0, -1, 4, -1, 0, -1, 0};
+	_maskWeightsTexture = WeightedTexture(3, weights, _maskWeightsTexture);
+	
+	glUseProgram(_firstPassProgramID);
+	glUniform1f(_glMaskSize, 3);
+	glUniform1f(_glWidthFirstPass, _width);
+	glUniform1f(_glHeightFirstPass, _height);
+	glUniform1f(_glMaskDivision, 1);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, _maskWeightsTexture);
+	glUniform1i(_glMaskSampler, 1);
+	
+	glUseProgram(_programID);
+	glUniform1f(_glWidth, _width);
+}
+
+void LaplaceFilter::RenderUI()
+{
+	bool maskChanged = false;
+}
+
+void LaplaceFilter::ApplyFilter(GLuint prevTexture)
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, _firstPassFrameBuffer);
+	glUseProgram(_firstPassProgramID);
+	ApplyTexture(_firstPassProgramID, _maskWeightsTexture, _glMaskSampler);
+	DrawTexturedTriangles(prevTexture, _firstPassTextureSampler);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	
+	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
+	glUseProgram(_programID);
+	DrawTexturedTriangles(_firstPassTexture, _textureSampler);
 }

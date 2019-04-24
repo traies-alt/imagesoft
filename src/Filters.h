@@ -406,3 +406,30 @@ struct MedianFilter: IFilter {
 	void ApplyFilter(GLuint prevTexture) override;
 	void InitMask();
 };
+
+struct LaplaceFilter: IFilter {
+	GLuint _firstPassTextureSampler;
+	GLuint _firstPassProgramID;
+	GLuint _glWidthFirstPass, _glHeightFirstPass;
+	GLuint _textureSampler;
+	GLuint _firstPassTexture;
+	GLuint _firstPassFrameBuffer;
+
+	GLuint _glMaskSize;	
+	GLuint _glMaskSampler;
+	GLuint _maskWeightsTexture;
+	GLuint _glMaskDivision;
+	GLuint _glWidth;
+	GLuint _glHeight;
+
+	LaplaceFilter(int w, int h) {
+		_width = w;
+		_height = h;
+		_name = "Laplace Filter";
+	}
+
+	void InitShader() override;
+	void RenderUI() override;
+	void ApplyFilter(GLuint prevTexture) override;
+	void InitMask();
+};

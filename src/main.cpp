@@ -51,10 +51,10 @@ int main(int, char**)
 #endif
 
 	// Create window with graphics context
-	GLFWwindow* window = glfwCreateWindow(1000, 1000, "Dear ImGui GLFW+OpenGL3 example", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(1920, 1080, "Dear ImGui GLFW+OpenGL3 example", NULL, NULL);
 	if (window == NULL)
 		return 1;
-
+	glfwMaximizeWindow(window);
 	glfwMakeContextCurrent(window);
 	glfwSwapInterval(1); // Enable vsync
 
@@ -193,7 +193,7 @@ int main(int, char**)
 
 		if (showFileSelectRaw) {
 			ImGui::Begin("Chose File Raw");
-			static int rawWidth, rawHeight;
+			static int rawWidth = 256, rawHeight = 256;
 			ImGui::InputInt("Raw Width", &rawWidth);
 			ImGui::InputInt("Raw Height", &rawHeight);
 			fs::path p;
@@ -423,6 +423,9 @@ int main(int, char**)
 				});
 				FilterButton("Border", [](int width, int height){
 					return new BorderFilter(width, height);
+				});
+				FilterButton("Laplace", [](int width, int height){
+					return new LaplaceFilter(width, height);
 				});
 				ImGui::EndPopup();
 			}
