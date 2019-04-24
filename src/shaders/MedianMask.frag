@@ -52,7 +52,7 @@ void main() {
 
 	vec3 acum = vec3(0);
 	
-	float halfMaskSize =  floor(int(maskSize) / 2);
+	float halfMaskSize =  floor(maskSize / 2);
 	float endWidth =  min(width, x + halfMaskSize);
 	float endHeight = min(height, y + halfMaskSize);
 	float startWidth = max(0, x - halfMaskSize);
