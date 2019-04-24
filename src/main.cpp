@@ -287,25 +287,6 @@ int main(int, char**)
 			ImGui::End();
 		}
 
-		if(showFileSelectRaw) {
-			ImGui::Begin("Chose File Raw");
-			static int rawWidth, rawHeight;
-			ImGui::InputInt("Raw Width", &rawWidth);
-			ImGui::InputInt("Raw Height", &rawHeight);
-			fs::path p;
-			if (SimpleFileNavigation(path, p)) {
-				auto imOpt = LoadImageFileRaw(p.string().c_str(), rawWidth, rawHeight);
-				if (imOpt.has_value()) {
-					auto val = imOpt.value();
-					imageWindows.push_back(make_unique<ImageWindowState>(val));
-					showFileSelect = false;
-				} else {
-					showFileSelectError = true;
-				}
-			}
-			ImGui::End();
-		}
-
 		if (ImGui::BeginMainMenuBar())
 		{
 			if (ImGui::BeginMenu("File"))
