@@ -475,6 +475,15 @@ int main(int, char**)
 					im->filters.push_back(filter);
 					ImGui::CloseCurrentPopup();
 				}
+
+				if (ImGui::Button("Border Filter")) {
+					IFilter * filter = new BorderFilter(im->width, im->height);
+					filter->InitShader();
+					im->filters.push_back(filter);
+					ImGui::CloseCurrentPopup();
+				}
+
+
 				ImGui::EndPopup();
 			}
 			ImGui::End();

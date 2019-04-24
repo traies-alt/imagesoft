@@ -280,7 +280,7 @@ struct SaltAndPepperNoiseFilter: IFilter {
 	GLuint ApplyFilter(GLuint prevTexture) override;
 };
 
-struct MeanFilter: IFilter {
+struct MaskFilter: IFilter {
 	GLuint _textureSampler;
 	GLuint _glMaskSize;
 	GLuint _glWidth, _glHeight;
@@ -292,8 +292,8 @@ struct MeanFilter: IFilter {
 	float  * _weights;
 	float _sigma = 1;
 	float _maskDivision = 9;
-	
-	MeanFilter(int w, int h) {
+
+    MaskFilter(int w, int h) {
 		_width = w;
 		_height = h;
 		_name = "Mean Filter";
@@ -307,6 +307,20 @@ struct MeanFilter: IFilter {
 	void RenderUI() override;
 	GLuint ApplyFilter(GLuint prevTexture) override;
 	void InitMask();
+};
+
+struct MeanFilter: MaskFilter {
+
+    MeanFilter(int w, int h): MaskFilter(w,h) { }
+
+    void RenderUI() override;
+};
+
+struct BorderFilter: MaskFilter {
+
+    BorderFilter(int w, int h): MaskFilter(w,h) { }
+
+    void RenderUI() override;
 };
 
 struct MedianFilter: IFilter {
