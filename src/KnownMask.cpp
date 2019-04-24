@@ -173,14 +173,12 @@ void RotateMask(int maskSize, float* weights) {
                     toY = y;
                     fromX = y;
                     fromY = (maskSize-1-x)/2;
-                    printf("1) %d-%d to %d-%d\n", fromX, fromY, toX, toY);
                     w[toX * maskSize + toY] = w[fromX * maskSize + fromY];
 
                     toX = fromX;
                     toY = fromY;
                     fromX = y;
                     fromY = maskSize-1-x;
-                    printf("2) %d-%d to %d-%d\n", fromX, fromY, toX, toY);
                     w[toX * maskSize + toY] = w[fromX * maskSize + fromY];
 
                     // move values from bottom to right
@@ -188,7 +186,6 @@ void RotateMask(int maskSize, float* weights) {
                     toY = fromY;
                     fromX = (maskSize-1-y)/2;
                     fromY = maskSize-1-x;
-                    printf("3) %d-%d to %d-%d\n", fromX, fromY, toX, toY);
                     w[toX * maskSize + toY] = w[fromX * maskSize + fromY];
 
 
@@ -196,7 +193,6 @@ void RotateMask(int maskSize, float* weights) {
                     toY = fromY;
                     fromX = maskSize-1-x;
                     fromY = maskSize-1-y;
-                    printf("4) %d-%d to %d-%d\n", fromX, fromY, toX, toY);
                     w[toX * maskSize + toY] = w[fromX * maskSize + fromY];
 
                     // move values from left to bottom
@@ -204,14 +200,12 @@ void RotateMask(int maskSize, float* weights) {
                     toY = fromY;
                     fromX = maskSize-1-x;
                     fromY = (maskSize-1-y)/2;
-                    printf("5)%d-%d to %d-%d\n", fromX, fromY, toX, toY);
                     w[toX * maskSize + toY] = w[fromX * maskSize + fromY];
 
                     toX = fromX;
                     toY = fromY;
                     fromX = maskSize-1-y;
                     fromY = x;
-                    printf("6)%d-%d to %d-%d\n", fromX, fromY, toX, toY);
                     w[toX * maskSize + toY] = w[fromX * maskSize + fromY];
 
                     // assign temp to left
@@ -219,14 +213,10 @@ void RotateMask(int maskSize, float* weights) {
                     toY = fromY;
                     fromX = (maskSize-1-y)/2;
                     fromY = x;
-                    printf("7)%d-%d to %d-%d\n", fromX, fromY, toX, toY);
                     w[toX * maskSize + toY] = w[fromX * maskSize + fromY];
 
                     toX = fromX;
                     toY = fromY;
-                    fromX = x;
-                    fromY = y;
-                    printf("%d-%d to %d-%d\n", fromX, fromY, toX, toY);
                     w[toX * maskSize + toY] = temp;
                 }
             }
