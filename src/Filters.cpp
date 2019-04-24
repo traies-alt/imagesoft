@@ -751,6 +751,11 @@ void BorderFilter::RenderUI()
 		}
 		ImGui::Text("");
 	}
+
+	if (ImGui::Button("Rotate Mask")) {
+		maskChanged = true;
+		RotateMask(_maskSize1, _weights1);
+	}
 	ImGui::PopItemWidth();
 	ImGui::Text("");
 
@@ -771,6 +776,17 @@ void BorderFilter::RenderUI()
 			}
 			ImGui::Text("");
 		}
+
+        if (ImGui::Button("Rotate Mask")) {
+            maskChanged = true;
+            RotateMask(_maskSize2, _weights2);
+        }
+
+        if (ImGui::Button("Rotate Both")) {
+            maskChanged = true;
+            RotateMask(_maskSize1, _weights1);
+            RotateMask(_maskSize2, _weights2);
+        }
 		ImGui::PopItemWidth();
 
 		if (maskChanged) {
@@ -796,7 +812,8 @@ void BorderFilter::RenderUI()
         _maskDivision = 1;
         setupRobertsVertical(&_maskSize1, _weights1);
 		_maskSize2 = _maskSize1;
-		clearMask(_maskSize1, _weights2);	}
+		clearMask(_maskSize1, _weights2);
+	}
 
     ImGui::SameLine();
 
@@ -868,7 +885,27 @@ void BorderFilter::RenderUI()
         setupSobelVertical(&_maskSize2, _weights2);
     }
 
-	if (maskChanged){
+    if (ImGui::Button("House Mask")) {
+        maskChanged = true;
+        _showSecondMask = false;
+        _maskDivision = 1;
+        setupHouseMask(&_maskSize1, _weights1);
+        _maskSize2 = _maskSize1;
+        clearMask(_maskSize1, _weights2);
+    }
+
+    ImGui::SameLine();
+    if (ImGui::Button("Kirsh")) {
+		maskChanged = true;
+		_showSecondMask = false;
+		_maskDivision = 1;
+		setupKirsh(&_maskSize1, _weights1);
+		_maskSize2 = _maskSize1;
+		clearMask(_maskSize1, _weights2);
+    }
+
+
+    if (maskChanged){
 		InitMask();
 	}
 }

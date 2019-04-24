@@ -1,6 +1,7 @@
 #pragma once
 #include <glad/glad.h>
 #include "FilesystemAdapter.h"
+#include "KnownMask.h"
 
 void InitVertexBuffer();
 
@@ -369,7 +370,11 @@ struct BorderFilter: CombinedMaskFilter {
 
     bool _showSecondMask = true;
 
-    BorderFilter(int w, int h): CombinedMaskFilter(w,h, const_cast<char *>("BorderFilter")) { }
+    BorderFilter(int w, int h): CombinedMaskFilter(w,h, const_cast<char *>("BorderFilter")) {
+        _maskDivision = 1;
+        setupSobelHorizontal(&_maskSize1, _weights1);
+        setupSobelVertical(&_maskSize2, _weights2);
+    }
 
     void RenderUI() override;
 };

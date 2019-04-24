@@ -53,5 +53,5 @@ void main() {
 			acum2 += neighbour * weight;
 		}
 	}
-	color = abs(acum1 - acum2) / maskDivision;
+	color = sqrt(acum1*acum1 + acum2*acum2) / maskDivision;
 }
