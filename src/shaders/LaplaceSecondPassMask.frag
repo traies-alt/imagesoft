@@ -10,9 +10,9 @@ uniform float maximum;
 
 void main() {
 	float x = floor(UV.x * width); 
-	vec3 curr = texture(myTextureSampler, UV).rgb * maximum - (maximum / 2);
-	vec3 prevX = texture(myTextureSampler, vec2(float(x - 1) / width, UV.y)).rgb * maximum - (maximum / 2);
-	vec3 nextX = texture(myTextureSampler, vec2(float(x + 1) / width, UV.y)).rgb * maximum - (maximum / 2);
+	vec3 curr = texture(myTextureSampler, UV).rgb * 2.0f * maximum - maximum;
+	vec3 prevX = texture(myTextureSampler, vec2(float(x - 1) / width, UV.y)).rgb * 2.0f * maximum - maximum;
+	vec3 nextX = texture(myTextureSampler, vec2(float(x + 1) / width, UV.y)).rgb * 2.0f * maximum - maximum;
 	
 	color = vec3(1);
 	if (x > 0) {
@@ -34,8 +34,8 @@ void main() {
 	}
 
 	float y = floor(UV.y * height);
-	vec3 prevY = texture(myTextureSampler, vec2(UV.x, float(y - 1) / height)).rgb * maximum - (maximum / 2);
-	vec3 nextY = texture(myTextureSampler, vec2(UV.x, float(y + 1) / height)).rgb * maximum - (maximum / 2);
+	vec3 prevY = texture(myTextureSampler, vec2(UV.x, float(y - 1) / height)).rgb * 2.0f * maximum - maximum;
+	vec3 nextY = texture(myTextureSampler, vec2(UV.x, float(y + 1) / height)).rgb * 2.0f * maximum - maximum;
 	
 	if (y > 0) {
 		if (curr.r == 0 && y < height - 1) {

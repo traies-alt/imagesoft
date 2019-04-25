@@ -32,5 +32,5 @@ void main() {
 		}
 	}
 
-	color = (acum + (maximum / 2.0f) ) / maximum;
+	color = (acum + maximum) / (2.0f*maximum);
 }
