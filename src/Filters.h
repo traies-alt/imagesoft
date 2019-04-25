@@ -436,6 +436,42 @@ struct MedianFilter: IFilter {
 	void InitMask();
 };
 
+enum BorderDetectorType {
+	NONE = 0,
+	LECLERC = 1,
+	LORENTZIANO = 2
+};
+
+struct HeatFilter: IFilter {
+	GLuint _textureSampler;
+	GLuint _textureSamplerBis;
+    GLuint _textureBis;
+    GLuint _frameBufferBis;
+
+	GLuint _glBorderDetector;
+	GLuint _glSigma;
+	GLuint _glWidth;
+	GLuint _glHeight;
+
+	BorderDetectorType _borderDetectorType = NONE;
+
+	float _sigma = 0.3;
+	int iterations = 1;
+	bool hasChanged = true;
+
+	HeatFilter(int w, int h) {
+		_width = w;
+		_height = h;
+		_name = "Heat Filter";
+	}
+
+	void InitShader() override;
+	void RenderUI() override;
+	void ApplyFilter(GLuint prevTexture) override;
+
+
+};
+
 struct LaplaceFilter: IFilter {
 	GLuint _firstPassTextureSampler;
 	GLuint _firstPassProgramID;
@@ -449,7 +485,6 @@ struct LaplaceFilter: IFilter {
 	GLuint _glMaskSize;	
 	GLuint _glMaskSampler;
 	GLuint _maskWeightsTexture;
-	GLuint _glMaskDivision;
 	GLuint _glWidth;
 	GLuint _glHeight;
 	GLuint _glMax;
@@ -466,6 +501,7 @@ struct LaplaceFilter: IFilter {
 		_name = "Laplace Filter";
 		_weights = new float[100];
 		float weights[] = {0, -1, 0, -1, 4, -1, 0, -1, 0};
+		_max = 4;
 		memcpy(_weights, weights, sizeof(float) * _maskSize * _maskSize);
 	}
 

@@ -4,10 +4,9 @@ in vec2 UV;
 layout(location = 0) out vec3 color;
 uniform sampler2D myTextureSampler;
 uniform sampler2D maskWeights;
-uniform float maskSize;
+uniform int maskSize;
 uniform float width;
 uniform float height;
-uniform float maskDivision;
 uniform float maximum;
 
 void main() {
@@ -15,7 +14,7 @@ void main() {
 	float y = floor(UV.y * height);
 
 	vec3 acum = vec3(0);
-	float halfMaskSize =  floor(maskSize / 2);
+	float halfMaskSize =  maskSize / 2;
 	float endWidth =  min(width, x + halfMaskSize);
 	float endHeight = min(height, y + halfMaskSize);
 	float startWidth = max(0, x - halfMaskSize);
@@ -33,5 +32,5 @@ void main() {
 		}
 	}
 
-	color = (acum / maskDivision + (maximum / 2.0f) ) / maximum;
+	color = (acum + (maximum / 2.0f) ) / maximum;
 }

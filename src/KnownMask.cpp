@@ -158,13 +158,9 @@ void RotateMask(int maskSize, float* weights) {
         int fromY;
         int toX;
         int toY;
-        printf("WUT");
             for (int x = 0; x < maskSize / 2; x++) {
-                printf("WUT2");
 
                 for (int y = x; y < (maskSize-x-1)/2; y++) {
-                    printf("%d is less %d",y,maskSize-x-1);
-
                     float temp = w[x* maskSize + y];
 
                     // move values from right to top

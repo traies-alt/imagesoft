@@ -436,6 +436,9 @@ int main(int, char**)
 				FilterButton("Bilateral Filter", [](int width, int height){
 					return new BilateralFilter(width, height);
 				});
+				FilterButton("Heat Filter", [](int width, int height){
+					return new HeatFilter(width, height);
+				});
 				ImGui::EndPopup();
 			}
 			ImGui::End();
