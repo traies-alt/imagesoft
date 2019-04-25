@@ -369,6 +369,7 @@ struct MeanFilter: MaskFilter {
 struct BorderFilter: CombinedMaskFilter {
 
     bool _showSecondMask = true;
+		float _sigma = 1.0f;
 
     BorderFilter(int w, int h): CombinedMaskFilter(w,h, const_cast<char *>("BorderFilter")) {
         _maskDivision = 1;
@@ -414,6 +415,8 @@ struct LaplaceFilter: IFilter {
 	GLuint _textureSampler;
 	GLuint _firstPassTexture;
 	GLuint _firstPassFrameBuffer;
+	GLuint _glThreshold;
+	GLuint _glMax2;
 
 	GLuint _glMaskSize;	
 	GLuint _glMaskSampler;
@@ -421,11 +424,21 @@ struct LaplaceFilter: IFilter {
 	GLuint _glMaskDivision;
 	GLuint _glWidth;
 	GLuint _glHeight;
+	GLuint _glMax;
+
+	float _threshold = 0;
+	int _maskSize = 3;
+	float * _weights;
+	float _sigma = 1;
+	float _max = 0;
 
 	LaplaceFilter(int w, int h) {
 		_width = w;
 		_height = h;
 		_name = "Laplace Filter";
+		_weights = new float[100];
+		float weights[] = {0, -1, 0, -1, 4, -1, 0, -1, 0};
+		memcpy(_weights, weights, sizeof(float) * _maskSize * _maskSize);
 	}
 
 	void InitShader() override;

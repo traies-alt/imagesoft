@@ -8,6 +8,7 @@ uniform float maskSize;
 uniform float width;
 uniform float height;
 uniform float maskDivision;
+uniform float maximum;
 
 void main() {
 	float x = floor(UV.x * width);
@@ -27,9 +28,10 @@ void main() {
 			float weightY = (j - y) / maskSize + 0.5F;
 			
 			vec3 neighbour = texture(myTextureSampler, vec2( normalX, normalY)).rgb;
-			float weight = floor(texture(maskWeights, vec2(weightX, weightY)).r);
+			float weight = texture(maskWeights, vec2(weightX, weightY)).r;
 			acum += neighbour * weight;
 		}
 	}
-	color = (acum / maskDivision + 4) / 8;
+
+	color = (acum / maskDivision + (maximum / 2.0f) ) / maximum;
 }

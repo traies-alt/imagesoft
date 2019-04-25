@@ -738,6 +738,7 @@ void CombinedMaskFilter::ApplyFilter(GLuint prevTexture)
 	DrawTexturedTriangles(prevTexture, _textureSampler);
 }
 
+
 void BorderFilter::RenderUI()
 {
 	bool maskChanged = false;
@@ -904,13 +905,10 @@ void BorderFilter::RenderUI()
 		clearMask(_maskSize1, _weights2);
     }
 
-
     if (maskChanged){
 		InitMask();
 	}
 }
-
-
 
 void MaskFilter::InitMask()
 {
@@ -1097,6 +1095,9 @@ void LaplaceFilter::InitShader()
 	}
 
 	_glWidth = glGetUniformLocation(_programID, "width");	
+	_glHeight = glGetUniformLocation(_programID, "height");	
+	_glThreshold = glGetUniformLocation(_programID, "threshold");
+	_glMax = glGetUniformLocation(_programID, "maximum");
 
 	_firstPassProgramID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/LaplaceFirstPassMask.frag");
 	_firstPassTextureSampler = glGetUniformLocation(_firstPassProgramID, "myTextureSampler");
@@ -1109,21 +1110,21 @@ void LaplaceFilter::InitShader()
 	_glHeightFirstPass = glGetUniformLocation(_firstPassProgramID, "height");
 	_glMaskSampler = glGetUniformLocation(_firstPassProgramID, "maskWeights");
 	_glMaskDivision = glGetUniformLocation(_firstPassProgramID, "maskDivision");
-	
+	_glMax2 = glGetUniformLocation(_programID, "maximum");
 	glGenTextures(1, &_maskWeightsTexture);
 	InitMask();
 }
 
 void LaplaceFilter::InitMask()
 {
-	float weights[] = {0, -1, 0, -1, 4, -1, 0, -1, 0};
-	_maskWeightsTexture = WeightedTexture(3, weights, _maskWeightsTexture);
+	_maskWeightsTexture = WeightedTexture(_maskSize, _weights, _maskWeightsTexture);
 	
 	glUseProgram(_firstPassProgramID);
-	glUniform1f(_glMaskSize, 3);
+	glUniform1f(_glMaskSize, _maskSize);
 	glUniform1f(_glWidthFirstPass, _width);
 	glUniform1f(_glHeightFirstPass, _height);
 	glUniform1f(_glMaskDivision, 1);
+	glUniform1f(_glMax2, _max);
 
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, _maskWeightsTexture);
@@ -1131,11 +1132,68 @@ void LaplaceFilter::InitMask()
 	
 	glUseProgram(_programID);
 	glUniform1f(_glWidth, _width);
+	glUniform1f(_glHeight, _height);
+	glUniform1f(_glMax, _max);
+	glUniform1f(_glThreshold, _threshold);
+}
+
+float LogWeight(float x, float y, float sigma)
+{
+	static float twoPiSqrd = sqrt(2.0f * M_PI);
+	float xyOverSigma = -(x * x + y * y) / (sigma * sigma);
+	float expPart = expf(xyOverSigma / 2.0f);
+	float sqrtPart = -(1.0f) / (twoPiSqrd * sigma * sigma * sigma);
+	float mainPart = 2.0f + xyOverSigma;
+	return expPart * sqrtPart * mainPart;
 }
 
 void LaplaceFilter::RenderUI()
 {
 	bool maskChanged = false;
+	if (ImGui::InputInt("Mask Size", &_maskSize)) {
+		glUseProgram(_firstPassProgramID);
+		glUniform1i(_glMaskSize, _maskSize);
+		maskChanged = true;
+	}
+	if (ImGui::InputFloat("Threshold", &_threshold, 0.01f, 0.1f, 2)) {
+		glUseProgram(_programID);
+		glUniform1f(_glThreshold, _threshold);
+	}
+	maskChanged |= ImGui::InputFloat("Sigma", &_sigma, 0.1f, 1.0f, 1);
+
+	if (ImGui::Button("Laplacian-Gaussian")) {
+		maskChanged = true;
+		_max = 0;
+		for (int i = 0; i < _maskSize; i++) {
+			for (int j = 0; j < _maskSize; j++) {
+				_weights[i + _maskSize * j] = LogWeight(i - _maskSize / 2, j - _maskSize / 2, _sigma);
+				if(_weights[i + _maskSize * j] > 0){
+					_max += _weights[i + _maskSize * j];
+				}
+			}
+		}
+	}
+
+	if (ImGui::Button("Laplacian")) {
+		maskChanged = true;
+		static const float weights[] = {0, -1, 0, -1, 4, -1, 0, -1, 0};
+		_maskSize = 3;
+		memcpy(_weights, weights, sizeof(float) * _maskSize * _maskSize);
+	}
+	
+	ImGui::PushItemWidth(50);
+	for (int i = 0; i < _maskSize; i++) {
+		for (int j = 0; j < _maskSize; j++) {
+			maskChanged |= ImGui::InputFloat(string("Mask Row").append(to_string(i * _maskSize + j)).c_str(), &_weights[i * _maskSize + j]);
+			ImGui::SameLine();
+		}
+		ImGui::Text("");
+	}
+	ImGui::PopItemWidth();
+
+	if (maskChanged) {
+		InitMask();
+	}
 }
 
 void LaplaceFilter::ApplyFilter(GLuint prevTexture)
