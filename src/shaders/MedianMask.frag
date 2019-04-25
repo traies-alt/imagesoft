@@ -37,7 +37,7 @@ float mediancolor(int band, float x, float y, float startWidth, float startHeigh
 			float weightY = (j - y) / maskSize + 0.5F;
 			
 			vec3 neighbour = texture(myTextureSampler, vec2( normalX, normalY)).rgb;
-			float t = floor(texture(maskWeights, vec2(weightX, weightY)).r);
+			float t = texture(maskWeights, vec2(weightX, weightY)).r;
 			for (float k = 0.0; k < t; k++) {
 				array[count++] = neighbour[band];
 			}

@@ -1422,3 +1422,46 @@ void LaplaceFilter::ApplyFilter(GLuint prevTexture)
 	glUseProgram(_programID);
 	DrawTexturedTriangles(_firstPassTexture, _textureSampler);
 }
+
+void BilateralFilter::InitShader()
+{
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/BilateralFilter.frag");
+	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
+	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+	_glMaskSize = glGetUniformLocation(_programID, "maskSize");	
+	_glWidth = glGetUniformLocation(_programID, "width");	
+	_glHeight = glGetUniformLocation(_programID, "height");
+	_glSigmaR = glGetUniformLocation(_programID, "sigmaR");
+	_glSigmaS = glGetUniformLocation(_programID, "sigmaS");
+
+	glUseProgram(_programID);
+	glUniform1i(_glMaskSize, _maskSize);
+	glUniform1f(_glSigmaS, _sigmaS);
+	glUniform1f(_glSigmaR, _sigmaR);
+	glUniform1f(_glWidth, _width);
+	glUniform1f(_glHeight, _height);
+}
+
+void BilateralFilter::RenderUI()
+{
+	if (ImGui::InputInt("Mask Size", &_maskSize)) {
+		glUseProgram(_programID);
+		glUniform1i(_glMaskSize, _maskSize);
+	}
+	if (ImGui::InputFloat("Sigma S", &_sigmaS)) {
+		glUseProgram(_programID);
+		glUniform1f(_glSigmaS, _sigmaS);
+	}
+	if (ImGui::InputFloat("Sigma R", &_sigmaR)) {
+		glUseProgram(_programID);
+		glUniform1f(_glSigmaR, _sigmaR);
+	}
+}
+
+void BilateralFilter::ApplyFilter(GLuint prevTexture)
+{
+	DrawTexturedTriangles(prevTexture, _textureSampler);
+}

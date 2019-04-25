@@ -30,7 +30,7 @@ void main() {
 			float weightY = (j - y) / maskSize1 + 0.5F;
 
 			vec3 neighbour = texture(myTextureSampler, vec2(normalX, normalY)).rgb;
-			float weight = floor(texture(maskWeights1, vec2(weightX, weightY)).r);
+			float weight = texture(maskWeights1, vec2(weightX, weightY)).r;
 			acum1 += neighbour * weight;
 		}
 	}
@@ -49,7 +49,7 @@ void main() {
 			float weightY = (j - y) / maskSize2 + 0.5F;
 
 			vec3 neighbour = texture(myTextureSampler, vec2(normalX, normalY)).rgb;
-			float weight = floor(texture(maskWeights2, vec2(weightX, weightY)).r);
+			float weight = texture(maskWeights2, vec2(weightX, weightY)).r;
 			acum2 += neighbour * weight;
 		}
 	}

@@ -474,3 +474,25 @@ struct LaplaceFilter: IFilter {
 	void ApplyFilter(GLuint prevTexture) override;
 	void InitMask();
 };
+
+struct BilateralFilter: IFilter {
+	GLuint _textureSampler;
+	GLuint _glMaskSize;	
+	GLuint _glWidth;
+	GLuint _glHeight;
+	GLuint _glSigmaS;
+	GLuint _glSigmaR;
+
+	int _maskSize = 7;
+	float _sigmaS = 2, _sigmaR = 30;
+
+	BilateralFilter(int w, int h) {
+		_width = w;
+		_height = h;
+		_name = "Bilateral Filter";
+	}
+
+	void InitShader() override;
+	void RenderUI() override;
+	void ApplyFilter(GLuint prevTexture) override;
+};
