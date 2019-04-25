@@ -427,6 +427,12 @@ int main(int, char**)
 				FilterButton("Laplace", [](int width, int height){
 					return new LaplaceFilter(width, height);
 				});
+                FilterButton("Global Threshold", [](int width, int height){
+                    return new GlobalThresholdFilter(width, height);
+                });
+				FilterButton("Otsu Threshold", [](int width, int height){
+					return new OtsuThresholdFilter(width, height);
+				});
 				ImGui::EndPopup();
 			}
 			ImGui::End();

@@ -355,7 +355,221 @@ void ThresholdFilter::RenderUI()
 void ThresholdFilter::ApplyFilter(GLuint prevTexture)
 {
 	DrawTexturedTriangles(prevTexture, _textureSampler);
+}
 
+void GlobalThresholdFilter::InitShader()
+{
+    _programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/Threshold.frag");
+    _textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
+    if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
+        std::cout << "Error rendering to texture." << std::endl;
+        return;
+    }
+    _glThreshold = glGetUniformLocation(_programID, "threshold");
+
+
+
+    glUseProgram(_programID);
+    glUniform3f(_glThreshold, _currentThreshold[0], _currentThreshold[1], _currentThreshold[2]);
+}
+
+void GlobalThresholdFilter::RenderUI()
+{
+
+    if (ImGui::ColorEdit3("Global Threshold", _initialThreshold)) {
+		if(_thresholdError > 0
+			&& _initialThreshold[0] > 0 && _initialThreshold[1] > 0 && _initialThreshold[2] > 0
+		   	&& _initialThreshold[0] < 1 && _initialThreshold[1] < 1 && _initialThreshold[2]  < 1) {
+			_thresholdChanged = true;
+		}
+    }
+
+	if (ImGui::InputFloat("Global Threshold Error", &_thresholdError)) {
+		if(_thresholdError > 0
+		   && _initialThreshold[0] > 0 && _initialThreshold[1] > 0 && _initialThreshold[2] > 0
+		   && _initialThreshold[0] < 1 && _initialThreshold[1] < 1 && _initialThreshold[2]  < 1) {
+			_thresholdChanged = true;
+		}
+	}
+
+	float temp[3] = {_currentThreshold[0], _currentThreshold[1], _currentThreshold[2]};
+    ImGui::ColorEdit3("Threshold", _currentThreshold);
+	for(int i=0; i<3; i++) {
+		_currentThreshold[i] = temp[i];
+	}
+
+
+}
+
+bool almostEqual(float a, float b, float error){
+	return fabs(a - b) < error;
+}
+
+void GlobalThresholdFilter::ApplyFilter(GLuint prevTexture)
+{
+	if(_thresholdChanged) {
+        for(int i=0; i<3; i++) {
+            _currentThreshold[i] = _initialThreshold[i];
+        }
+
+		float temp[3] = {-1,-1,-1};
+		auto prev_pixels = (unsigned char*)malloc( (size_t)3*_width*_height );
+		auto cur_pixels = (unsigned char*)malloc( (size_t)3*_width*_height );
+
+
+		while(!almostEqual(temp[0], _currentThreshold[0], _thresholdError)
+					|| !almostEqual(temp[1], _currentThreshold[1], _thresholdError)
+					|| !almostEqual(temp[2], _currentThreshold[2], _thresholdError) ){
+
+			for(int i=0; i<3; i++) {
+				temp[i] = _currentThreshold[i];
+			}
+
+			glUseProgram(_programID);
+			glUniform3f(_glThreshold, _currentThreshold[0], _currentThreshold[1], _currentThreshold[2]);
+			DrawTexturedTriangles(prevTexture, _textureSampler);
+
+			//Calculate group values
+			float acuWhites[3]  = {0,0,0};
+			int countWhites[3]  = {0,0,0};
+
+			float acuBlacks[3]  = {0,0,0};
+			int countBlacks[3]  = {0,0,0};
+
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, _outputTexture);
+			glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, cur_pixels);
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, prevTexture);
+			glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, prev_pixels);
+
+			for(int x=0; x<_width; x++) {
+				for(int y=0; y<_height; y++) {
+					int pos = x * _width + y;
+					for(int i=0; i<3; i++) {
+						if(cur_pixels[pos + i] == 0) {
+							acuBlacks[i] += prev_pixels[i];
+							countBlacks[i] ++;
+						} else {
+							acuWhites[i] += prev_pixels[i];
+							countWhites[i] ++;
+						}
+					}
+
+				}
+			}
+
+			for(int i=0; i<3; i++) {
+				if (countBlacks[i] == 0) {
+					_currentThreshold[i] = 0.5f * acuWhites[i] / countWhites[i] / 255.0f;
+				} else if (countWhites[i] == 0) {
+					_currentThreshold[i] = 0.5f * acuBlacks[i] / countBlacks[i] / 255.0f;
+
+				} else {
+					_currentThreshold[i] = 0.5f * (acuWhites[i] / countWhites[i] + acuBlacks[i] / countBlacks[i]) / 256.0f;
+				}
+			}
+		}
+
+		free(prev_pixels);
+		free(cur_pixels);
+
+        glUseProgram(_programID);
+        glUniform3f(_glThreshold, _currentThreshold[0], _currentThreshold[1], _currentThreshold[2]);
+        DrawTexturedTriangles(prevTexture, _textureSampler);
+		_thresholdChanged = false;
+	}
+}
+
+void OtsuThresholdFilter::RenderUI() {
+
+	if(ImGui::ColorEdit3("OtsuThreshold", _threshold)) {
+		_thresholdChanged = true;
+	}
+
+	if(ImGui::Button("Recalculate")) {
+		_thresholdChanged = true;
+	}
+
+}
+
+void OtsuThresholdFilter::ApplyFilter(GLuint prevTexture)
+{
+	if(_thresholdChanged) {
+
+		float histA[3][256] = { {0}, {0}, {0} };
+		double histD[3][256] = { {0}, {0}, {0} };
+
+		double pixelCount = _width * _height;
+		for (int i = 0; i < 3; ++i) {
+			GetHistogram(prevTexture, _width, _height, i, histA[i]);
+			for (int j = 0; j < 256; ++j) {
+				histD[i][j] = histA[i][j]/pixelCount;
+			}
+		}
+
+		double p[3][256] = {{0}, {0}, {0}};
+		for (int i = 0; i < 3; ++i) {
+			for (int t = 0; t < 256; ++t) {
+				for (int k = 0; k < t; ++k) {
+					p[i][t] += histD[i][k];
+				}
+			}
+		}
+
+		double m[3][256] = {{0}, {0}, {0}};
+		for (int i = 0; i < 3; ++i) {
+			for (int t = 0; t < 256; ++t) {
+				for (int k = 0; k < t; ++k) {
+					m[i][t] += k*histD[i][k];
+				}
+			}
+		}
+
+		double mg[3] = {m[0][255], m[1][255], m[2][255]};
+
+		for (int i = 0; i < 3; ++i) {
+			double max = 0;
+			int maxFound = 0;
+			double maxSum = 0;
+
+			if (p[i][255] == 0) {
+				_threshold[i] = 0;
+			} else {
+				for (int j = 0; j < 256; ++j) {
+					if (almostEqual((float) p[i][j], 0, 0.01) || almostEqual((float) p[i][j], 1, 0.01)) {
+						continue;
+					}
+
+					double upper = mg[i] * p[i][j] - m[i][j];
+					double sig = (upper * upper) / (p[i][j] * (1 - p[i][j]));
+
+					if (sig > max) {
+						max = sig;
+						maxFound=1;
+						maxSum=j;
+					} else if(sig == max) {
+						maxFound++;
+						maxSum += j;
+					}
+
+				}
+
+				if (maxFound == 0) {
+					_threshold[i] = 0;
+				} else {
+					_threshold[i] = (float) (maxSum / maxFound / 255.0);
+				}
+			}
+		}
+
+			glUseProgram(_programID);
+		glUniform3f(_glThreshold, _threshold[0], _threshold[1], _threshold[2]);
+		DrawTexturedTriangles(prevTexture, _textureSampler);
+		_thresholdChanged = false;
+	}
 }
 
 void ContrastFilter::InitShader()
