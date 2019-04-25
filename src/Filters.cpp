@@ -483,6 +483,95 @@ void GlobalThresholdFilter::ApplyFilter(GLuint prevTexture)
 	}
 }
 
+void OtsuThresholdFilter::RenderUI() {
+
+	if(ImGui::ColorEdit3("OtsuThreshold", _threshold)) {
+		_thresholdChanged = true;
+	}
+
+	if(ImGui::Button("Recalculate")) {
+		_thresholdChanged = true;
+	}
+
+}
+
+void OtsuThresholdFilter::ApplyFilter(GLuint prevTexture)
+{
+	if(_thresholdChanged) {
+
+		float histA[3][256] = { {0}, {0}, {0} };
+		double histD[3][256] = { {0}, {0}, {0} };
+
+		double pixelCount = _width * _height;
+		for (int i = 0; i < 3; ++i) {
+			GetHistogram(prevTexture, _width, _height, i, histA[i]);
+			for (int j = 0; j < 256; ++j) {
+				histD[i][j] = histA[i][j]/pixelCount;
+			}
+		}
+
+		double p[3][256] = {{0}, {0}, {0}};
+		for (int i = 0; i < 3; ++i) {
+			for (int t = 0; t < 256; ++t) {
+				for (int k = 0; k < t; ++k) {
+					p[i][t] += histD[i][k];
+				}
+			}
+		}
+
+		double m[3][256] = {{0}, {0}, {0}};
+		for (int i = 0; i < 3; ++i) {
+			for (int t = 0; t < 256; ++t) {
+				for (int k = 0; k < t; ++k) {
+					m[i][t] += k*histD[i][k];
+				}
+			}
+		}
+
+		double mg[3] = {m[0][255], m[1][255], m[2][255]};
+
+		for (int i = 0; i < 3; ++i) {
+			double max = 0;
+			int maxFound = 0;
+			double maxSum = 0;
+
+			if (p[i][255] == 0) {
+				_threshold[i] = 0;
+			} else {
+				for (int j = 0; j < 256; ++j) {
+					if (almostEqual((float) p[i][j], 0, 0.01) || almostEqual((float) p[i][j], 1, 0.01)) {
+						continue;
+					}
+
+					double upper = mg[i] * p[i][j] - m[i][j];
+					double sig = (upper * upper) / (p[i][j] * (1 - p[i][j]));
+
+					if (sig > max) {
+						max = sig;
+						maxFound=1;
+						maxSum=j;
+					} else if(sig == max) {
+						maxFound++;
+						maxSum += j;
+					}
+
+				}
+
+				if (maxFound == 0) {
+					_threshold[i] = 0;
+				} else {
+					_threshold[i] = (float) (maxSum / maxFound / 255.0);
+				}
+			}
+		}
+
+			glUseProgram(_programID);
+		glUniform3f(_glThreshold, _threshold[0], _threshold[1], _threshold[2]);
+		DrawTexturedTriangles(prevTexture, _textureSampler);
+		_thresholdChanged = false;
+	}
+}
+
 void ContrastFilter::InitShader()
 {
 	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/Contrast.frag");

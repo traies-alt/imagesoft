@@ -188,6 +188,15 @@ struct GlobalThresholdFilter: IFilter {
     void ApplyFilter(GLuint prevTexture) override;
 };
 
+struct OtsuThresholdFilter: ThresholdFilter {
+
+    bool _thresholdChanged = true;
+    OtsuThresholdFilter(int w, int h): ThresholdFilter(w, h) { }
+
+    void RenderUI() override;
+    void ApplyFilter(GLuint prevTexture) override;
+};
+
 struct ContrastFilter: IFilter {
 	GLuint _textureSampler;
 	GLuint _glLower, _glLowerTo;
