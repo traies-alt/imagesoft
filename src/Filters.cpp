@@ -1422,3 +1422,116 @@ void LaplaceFilter::ApplyFilter(GLuint prevTexture)
 	glUseProgram(_programID);
 	DrawTexturedTriangles(_firstPassTexture, _textureSampler);
 }
+
+void HeatFilter::InitShader()
+{
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/Anisotropic.frag");
+	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
+	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+
+	_textureSamplerBis = glGetUniformLocation(_programID, "myTextureSampler");
+	if (!InitOutputTexture(_width, _height, _frameBufferBis, _textureBis)) {
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+
+	_glBorderDetector = glGetUniformLocation(_programID, "borderDetector");
+	_glSigma = glGetUniformLocation(_programID, "sigma");
+	_glWidth = glGetUniformLocation(_programID, "width");
+	_glHeight = glGetUniformLocation(_programID, "height");
+
+
+	glUseProgram(_programID);
+    glUniform1i(_glBorderDetector, static_cast<int>(_borderDetectorType));
+    glUniform1f(_glSigma, _sigma);
+	glUniform1f(_glWidth, _width);
+	glUniform1f(_glHeight, _height);
+}
+
+void HeatFilter::RenderUI()
+{
+
+	if (ImGui::InputInt("Heat Ierations", &iterations)) {
+		if(iterations>0) {
+			hasChanged = true;
+		}
+	}
+
+	if(_borderDetectorType != NONE) {
+		if (ImGui::InputFloat("Border Sigma", &_sigma, 0.01f)) {
+			if (_sigma != 0) {
+				hasChanged = true;
+			}
+		}
+	}
+
+	if(ImGui::Button("Isotropic")) {
+		_borderDetectorType = NONE;
+		hasChanged = true;
+	}
+
+	ImGui::SameLine();
+
+	if(ImGui::Button("Leclerc")) {
+		_borderDetectorType = LECLERC;
+		hasChanged = true;
+	}
+
+	ImGui::SameLine();
+
+	if(ImGui::Button("Lorentziano")) {
+		_borderDetectorType = LORENTZIANO;
+		hasChanged = true;
+	}
+
+	if(_borderDetectorType == NONE) {
+	    ImGui::Text("No border detector");
+	}
+
+    if(_borderDetectorType == LECLERC) {
+        ImGui::Text("Using Leclerc");
+    }
+
+    if(_borderDetectorType == LORENTZIANO) {
+        ImGui::Text("Using Lorentziano");
+    }
+
+	if(hasChanged) {
+        glUseProgram(_programID);
+        glUniform1i(_glBorderDetector, static_cast<int>(_borderDetectorType));
+        glUniform1f(_glSigma, _sigma);
+        glUniform1f(_glWidth, _width);
+        glUniform1f(_glHeight, _height);
+	}
+}
+
+void HeatFilter::ApplyFilter(GLuint prevTexture)
+{
+	if(hasChanged) {
+		glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
+		DrawTexturedTriangles(prevTexture, _textureSampler);
+
+		for (int i = 1; i < iterations; ++i) {
+			prevTexture = _outputTexture;
+			_outputTexture = _textureBis;
+			_textureBis = prevTexture;
+
+			auto newBuffer = _frameBufferBis;
+			_frameBufferBis = _outputFramebuffer;
+			_outputFramebuffer = newBuffer;
+
+			auto newSample = _textureSamplerBis;
+			_textureSamplerBis = _textureSampler;
+			_textureSampler = newSample;
+
+			glBindFramebuffer(GL_FRAMEBUFFER, newBuffer);
+			DrawTexturedTriangles(prevTexture, newSample);
+		}
+
+		hasChanged = false;
+	}
+
+}

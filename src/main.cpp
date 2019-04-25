@@ -433,6 +433,10 @@ int main(int, char**)
 				FilterButton("Otsu Threshold", [](int width, int height){
 					return new OtsuThresholdFilter(width, height);
 				});
+
+				FilterButton("Heat Filter", [](int width, int height){
+					return new HeatFilter(width, height);
+				});
 				ImGui::EndPopup();
 			}
 			ImGui::End();
