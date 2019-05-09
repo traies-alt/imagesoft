@@ -198,7 +198,7 @@ int main(int, char**)
 			ImGui::InputInt("Raw Height", &rawHeight);
 			fs::path p;
 			if (SimpleFileNavigation(path, p)) {
-				auto imOpt = LoadImageFileRaw(p.string().c_str(), rawWidth, rawHeight);
+				 auto imOpt = LoadImageFileRaw(p.string().c_str(), rawWidth, rawHeight);
 				if (imOpt.has_value()) {
 					auto val = imOpt.value();
 					imageWindows.push_back(make_unique<ImageWindowState>(val));

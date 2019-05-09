@@ -159,7 +159,7 @@ void SubstractionFilter::InitShader()
 	_secondSampler = glGetUniformLocation(_programID, "secondSampler");
 	_subtract = false;
 	_factor = glGetUniformLocation(_programID, "factor");
-	
+
 	_glMin = glGetUniformLocation(_programID, "min");
 	glUniform3f(_glMin, _min[0], _min[1], _min[2]);
 	_glMax = glGetUniformLocation(_programID, "max");
@@ -194,7 +194,7 @@ void SubstractionFilter::RenderUI()
 		glUseProgram(_programID);
 		glUniform3f(_glMin, _min[0], _min[1], _min[2]);
 		glUseProgram(_programID);
-		glUniform3f(_glMax, _max[0], _max[1], _max[2]);			
+		glUniform3f(_glMax, _max[0], _max[1], _max[2]);
 	}
 	ImGui::Text("Min: %f %f %f, Max: %f %f %f", _min[0], _min[1], _min[2], _max[0], _max[1], _max[2]);
 }
@@ -235,7 +235,7 @@ void ScalarFilter::InitShader()
 	_factorGl = glGetUniformLocation(_programID, "factor");
 	_glC = glGetUniformLocation(_programID, "c");
 	_glDynamicRange = glGetUniformLocation(_programID, "dynamicRange");
-	
+
 	glUseProgram(_programID);
 	glUniform1f(_factorGl, _factor);
 	glUniform3f(_glC, 1, 1, 1);
@@ -249,9 +249,9 @@ void ScalarFilter::RenderUI()
 		glUniform1f(_factorGl, _factor);
 	}
 	if (ImGui::Checkbox("Dynamic range adjust", &_dynamicRange)) {
-		glUseProgram(_programID);		
+		glUseProgram(_programID);
 		if (_dynamicRange) {
-			glUniform1i(_glDynamicRange, 1);		
+			glUniform1i(_glDynamicRange, 1);
 		} else {
 			glUniform1i(_glDynamicRange, 0);
 		}
@@ -295,7 +295,7 @@ void DynamicRangeCompressionFilter::ApplyFilter(GLuint prevTexture)
 		float cr = 1.0 / (log(1.0 + _maxr / 255.0)),
 					cg = 1.0 / (log(1.0 + _maxg / 255.0)),
 					cb = 1.0 / (log(1.0 + _maxb / 255.0));
-		
+
 		glUniform3f(_glC, cr, cg, cb);
 	}
 
@@ -550,9 +550,6 @@ void OtsuThresholdFilter::ApplyFilter(GLuint prevTexture)
 						max = sig;
 						maxFound=1;
 						maxSum=j;
-					} else if(sig == max) {
-						maxFound++;
-						maxSum += j;
 					}
 
 				}
@@ -635,7 +632,7 @@ void EqualizationFilter::InitShader()
 	glUniform1i(_eqSampler, 1);
 }
 
-static void Eq(float * h, unsigned char * ha, int total) 
+static void Eq(float * h, unsigned char * ha, int total)
 {
 	float temp[256] = { 0 };
 	int acum = 0;
@@ -658,7 +655,7 @@ void EqualizationFilter::RenderUI()
 
 void EqualizationFilter::ApplyFilter(GLuint prevTexture)
 {
-	
+
 	if (_eqCalcTexture){
 		float hr[256] = { 0 }, hg[256] = { 0 }, hb[256] = { 0 } ;
 		unsigned char har[256], hag[256], hab[256] ;
@@ -792,17 +789,17 @@ void GaussianNoiseFilter::InitShader()
 	}
 	_randomSampler = glGetUniformLocation(_programID, "randomSampler");
 	_randomSampler2 = glGetUniformLocation(_programID, "randomSampler2");
-	
+
 	GLuint textures[2];
 	glGenTextures(2, textures);
 	_randomTex = RandomTexture(_seed[0], _width, _height, textures[0]);
 	_randomTex2 = RandomTexture(_seed[1], _width, _height, textures[1]);
-	
+
 	_glSigma = glGetUniformLocation(_programID, "sigma");
 	_glMu = glGetUniformLocation(_programID, "mu");
 	_glContamination = glGetUniformLocation(_programID, "contamination");
 	glUseProgram(_programID);
-	
+
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, _randomTex);
 
@@ -865,12 +862,12 @@ void SaltAndPepperNoiseFilter::InitShader()
 	GLuint textures[1];
 	glGenTextures(1, textures);
 	_randomTex = RandomTexture(_seed, _width, _height, textures[0]);
-	
+
 	_glContamination1 = glGetUniformLocation(_programID, "contamination1");
 	_glContamination2 = glGetUniformLocation(_programID, "contamination2");
 
 	glUseProgram(_programID);
-	
+
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, _randomTex);
 	glUniform1i(_randomSampler, 1);
@@ -897,7 +894,7 @@ void SaltAndPepperNoiseFilter::RenderUI()
 
 void SaltAndPepperNoiseFilter::ApplyFilter(GLuint prevTexture)
 {
-	
+
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, _randomTex);
 	glUniform1i(_randomSampler, 1);
@@ -1146,8 +1143,8 @@ void MaskFilter::InitShader()
 		std::cout << "Error rendering to texture." << std::endl;
 		return;
 	}
-	_glMaskSize = glGetUniformLocation(_programID, "maskSize");	
-	_glWidth = glGetUniformLocation(_programID, "width");	
+	_glMaskSize = glGetUniformLocation(_programID, "maskSize");
+	_glWidth = glGetUniformLocation(_programID, "width");
 	_glHeight = glGetUniformLocation(_programID, "height");
 	_glMaskSampler = glGetUniformLocation(_programID, "maskWeights");
 	_glMaskDivision = glGetUniformLocation(_programID, "maskDivision");
@@ -1245,7 +1242,7 @@ void MedianFilter::InitMask()
 {
 	_maskDivision = (float)_maskSize * _maskSize;
 	_maskWeightsTexture = WeightedTexture(_maskSize, _weights, _maskWeightsTexture);
-	
+
 	glUseProgram(_programID);
 	glUniform1f(_glMaskSize, _maskSize);
 	glUniform1f(_glWidth, _width);
@@ -1265,12 +1262,12 @@ void MedianFilter::InitShader()
 		std::cout << "Error rendering to texture." << std::endl;
 		return;
 	}
-	_glMaskSize = glGetUniformLocation(_programID, "maskSize");	
-	_glWidth = glGetUniformLocation(_programID, "width");	
+	_glMaskSize = glGetUniformLocation(_programID, "maskSize");
+	_glWidth = glGetUniformLocation(_programID, "width");
 	_glHeight = glGetUniformLocation(_programID, "height");
 	_glMaskSampler = glGetUniformLocation(_programID, "maskWeights");
 	_glMaskDivision = glGetUniformLocation(_programID, "maskDivision");
-	
+
 	glGenTextures(1, &_maskWeightsTexture);
 	InitMask();
 }
@@ -1308,8 +1305,8 @@ void LaplaceFilter::InitShader()
 		return;
 	}
 
-	_glWidth = glGetUniformLocation(_programID, "width");	
-	_glHeight = glGetUniformLocation(_programID, "height");	
+	_glWidth = glGetUniformLocation(_programID, "width");
+	_glHeight = glGetUniformLocation(_programID, "height");
 	_glThreshold = glGetUniformLocation(_programID, "threshold");
 	_glMax = glGetUniformLocation(_programID, "maximum");
 
@@ -1319,8 +1316,8 @@ void LaplaceFilter::InitShader()
 		std::cout << "Error rendering to texture." << std::endl;
 		return;
 	}
-	_glMaskSize = glGetUniformLocation(_firstPassProgramID, "maskSize");	
-	_glWidthFirstPass = glGetUniformLocation(_firstPassProgramID, "width");	
+	_glMaskSize = glGetUniformLocation(_firstPassProgramID, "maskSize");
+	_glWidthFirstPass = glGetUniformLocation(_firstPassProgramID, "width");
 	_glHeightFirstPass = glGetUniformLocation(_firstPassProgramID, "height");
 	_glMaskSampler = glGetUniformLocation(_firstPassProgramID, "maskWeights");
 	_glMax2 = glGetUniformLocation(_firstPassProgramID, "maximum");
@@ -1330,8 +1327,22 @@ void LaplaceFilter::InitShader()
 
 void LaplaceFilter::InitMask()
 {
+		float tempMax = 0;
+		float tempMin = 0;
+		for (int i = 0; i < _maskSize; i++) {
+			for (int j = 0; j < _maskSize; j++) {
+				if(_weights[i + _maskSize * j] > 0){
+					tempMax += _weights[i + _maskSize * j];
+				} else {
+					tempMin += -_weights[i + _maskSize * j];
+				}
+			}
+		}
+
+		_max = max(tempMax, tempMin);
+
 	_maskWeightsTexture = WeightedTexture(_maskSize, _weights, _maskWeightsTexture);
-	
+
 	glUseProgram(_firstPassProgramID);
 	glUniform1i(_glMaskSize, _maskSize);
 	glUniform1f(_glWidthFirstPass, _width);
@@ -1341,7 +1352,7 @@ void LaplaceFilter::InitMask()
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, _maskWeightsTexture);
 	glUniform1i(_glMaskSampler, 1);
-	
+
 	glUseProgram(_programID);
 	glUniform1f(_glWidth, _width);
 	glUniform1f(_glHeight, _height);
@@ -1371,17 +1382,20 @@ void LaplaceFilter::RenderUI()
 		glUseProgram(_programID);
 		glUniform1f(_glThreshold, _threshold);
 	}
-	maskChanged |= ImGui::InputFloat("Sigma", &_sigma, 0.1f, 1.0f, 1);
-
-	if (ImGui::Button("Laplacian-Gaussian")) {
+	if(ImGui::InputFloat("Sigma", &_sigma, 0.1f, 1.0f, 1)){
 		maskChanged = true;
-		_max = 0;
 		for (int i = 0; i < _maskSize; i++) {
 			for (int j = 0; j < _maskSize; j++) {
 				_weights[i + _maskSize * j] = LogWeight(i - _maskSize / 2, j - _maskSize / 2, _sigma);
-				if(_weights[i + _maskSize * j] > 0){
-					_max += _weights[i + _maskSize * j];
-				}
+			}
+		}
+	}
+
+	if (ImGui::Button("Laplacian-Gaussian")) {
+		maskChanged = true;
+		for (int i = 0; i < _maskSize; i++) {
+			for (int j = 0; j < _maskSize; j++) {
+				_weights[i + _maskSize * j] = LogWeight(i - _maskSize / 2, j - _maskSize / 2, _sigma);
 			}
 		}
 	}
@@ -1393,7 +1407,7 @@ void LaplaceFilter::RenderUI()
 		_maskSize = 3;
 		memcpy(_weights, weights, sizeof(float) * _maskSize * _maskSize);
 	}
-	
+
 	ImGui::PushItemWidth(50);
 	for (int i = 0; i < _maskSize; i++) {
 		for (int j = 0; j < _maskSize; j++) {
@@ -1416,7 +1430,7 @@ void LaplaceFilter::ApplyFilter(GLuint prevTexture)
 	ApplyTexture(_firstPassProgramID, _maskWeightsTexture, _glMaskSampler);
 	DrawTexturedTriangles(prevTexture, _firstPassTextureSampler);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	
+
 	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
 	glUseProgram(_programID);
 	DrawTexturedTriangles(_firstPassTexture, _textureSampler);
