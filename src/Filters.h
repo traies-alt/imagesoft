@@ -532,3 +532,44 @@ struct BilateralFilter: IFilter {
 	void RenderUI() override;
 	void ApplyFilter(GLuint prevTexture) override;
 };
+
+struct SusanFilter: IFilter {
+	GLuint _textureSampler;
+	GLuint _glEpsilon;
+	GLuint _glEdgeDetectionCutoff;
+
+	float _epsilon = 0.05f;
+	float _edgeDetectionCutoff = 0.1f;
+
+	SusanFilter(int w, int h) {
+		_width = w;
+		_height = h;
+		_name = "Susan Filter";
+	}
+
+	void InitShader() override;
+	void RenderUI() override;
+	void ApplyFilter(GLuint prevTexture) override;
+};
+
+struct CannyFilter: IFilter {
+	GLuint _textureSampler;
+	GLuint _glEpsilon;
+	GLuint _glEdgeDetectionCutoff;
+	GLuint _glT1;
+	GLuint _glT2;
+	float _epsilon = 0.05f;
+	float _edgeDetectionCutoff = 0.1f;
+	float _t1 = 0.1f;
+	float _t2 = 0.9f;
+
+	CannyFilter(int w, int h) {
+		_width = w;
+		_height = h;
+		_name = "Canny Filter";
+	}
+
+	void InitShader() override;
+	void RenderUI() override;
+	void ApplyFilter(GLuint prevTexture) override;
+};

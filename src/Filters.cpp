@@ -672,8 +672,8 @@ void EqualizationFilter::ApplyFilter(GLuint prevTexture)
 		}
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_1D, _eqTexture);
-		glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 		glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 		glTexImage1D(GL_TEXTURE_1D, 0, GL_RGB ,256, NULL, GL_RGB, GL_UNSIGNED_BYTE, pixels);
@@ -1608,4 +1608,76 @@ void HeatFilter::ApplyFilter(GLuint prevTexture)
 
 		hasChanged = false;
 	}
+}
+
+void SusanFilter::InitShader()
+{
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/Susan.frag");
+	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
+	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture))
+	{
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+	glUseProgram(_programID);
+	_glEpsilon = glGetUniformLocation(_programID, "epsilon");
+	_glEdgeDetectionCutoff = glGetUniformLocation(_programID, "edgeDetectionCutoff");
+	GLuint glHeight = glGetUniformLocation(_programID, "height");
+	GLuint glWidth = glGetUniformLocation(_programID, "width");
+	glUniform1f(_glEpsilon, _epsilon);
+	glUniform1f(_glEdgeDetectionCutoff, _edgeDetectionCutoff);
+	glUniform1f(glHeight, _height);
+	glUniform1f(glWidth, _width);
+}
+
+void SusanFilter::RenderUI()
+{
+	if(ImGui::InputFloat("Epsilon", &_epsilon, 0.001f, 0.01f, 3)) {
+		glUseProgram(_programID);
+		glUniform1f(_glEpsilon, _epsilon);
+	}
+	if(ImGui::InputFloat("Edge detection cutoff", &_edgeDetectionCutoff, 0.001f, 0.01f, 3)) {
+		glUseProgram(_programID);
+		glUniform1f(_glEdgeDetectionCutoff, _edgeDetectionCutoff);
+	}
+}
+
+void SusanFilter::ApplyFilter(GLuint prevTexture)
+{
+	DrawTexturedTriangles(prevTexture, _textureSampler);
+}
+
+void CannyFilter::InitShader()
+{
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/Canny.frag");
+	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
+	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture))
+	{
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+	glUseProgram(_programID);
+	GLuint glHeight = glGetUniformLocation(_programID, "height");
+	GLuint glWidth = glGetUniformLocation(_programID, "width");
+	_glT1 = glGetUniformLocation(_programID, "t1");
+	_glT2 = glGetUniformLocation(_programID, "t2");
+	glUniform1f(glHeight, _height);
+	glUniform1f(glWidth, _width);
+}
+
+void CannyFilter::RenderUI()
+{
+	if (ImGui::InputFloat("T1", &_t1, 0.01f, 0.001f, 3)) {
+		glUseProgram(_programID);
+		glUniform1f(_glT1, _t1);
+	}
+	if (ImGui::InputFloat("T2", &_t2, 0.01f, 0.001f, 3)) {
+		glUseProgram(_programID);
+		glUniform1f(_glT2, _t2);
+	}
+}
+
+void CannyFilter::ApplyFilter(GLuint prevTexture)
+{
+	DrawTexturedTriangles(prevTexture, _textureSampler);	
 }

@@ -439,6 +439,12 @@ int main(int, char**)
 				FilterButton("Heat Filter", [](int width, int height){
 					return new HeatFilter(width, height);
 				});
+				FilterButton("Susan Filter", [](int width, int height){
+					return new SusanFilter(width, height);
+				});
+				FilterButton("Canny Filter", [](int width, int height){
+					return new CannyFilter(width, height);
+				});
 				ImGui::EndPopup();
 			}
 			ImGui::End();
