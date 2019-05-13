@@ -128,6 +128,7 @@ int main(int, char**)
 	float zoom = 1;
 	auto imageWindows = vector<unique_ptr<ImageWindowState>>();
 	bool showFileSelect = false;
+	bool showVideoSelect = false;
 	bool showFileSelectError = false;
 	bool showFileSelectRaw = false;
 	bool generateImage = false;
@@ -173,12 +174,42 @@ int main(int, char**)
 			ImGui::ShowDemoWindow(&show_demo_window);
 		}
 
+		if (showVideoSelect) {
+			ImGui::Begin("Choose Directory Window");
+
+			// Simple File Navigation
+			fs::path p;
+			if (SimpleFileNavigation(path, p, true)) {
+				cout << p.string().c_str() << endl;
+				auto imOpt = LoadVideoFile(p.string().c_str());
+				if (imOpt.has_value()) {
+					auto val = imOpt.value();
+					imageWindows.push_back(make_unique<ImageWindowStateVideo>(val));
+
+					auto videoState = (ImageWindowStateVideo*)imageWindows.back().get();;
+
+                    IFilter * videoFilter = new VideoFilter(
+							videoState->width,
+							videoState->height,
+							videoState);
+
+					videoFilter->InitShader();
+					videoState->filters.push_back(videoFilter);
+					showVideoSelect = false;
+				} else {
+					showVideoSelect = true;
+				}
+			}
+			ImGui::End();
+		}
+
 		if (showFileSelect) {
 			ImGui::Begin("Choose File Window");
 
 			// Simple File Navigation
 			fs::path p;
-			if (SimpleFileNavigation(path, p)) {
+			if (SimpleFileNavigation(path, p, false)) {
+				cout << p.string().c_str() << endl;
 				auto imOpt = LoadImageFile(p.string().c_str());
 				if (imOpt.has_value()) {
 					auto val = imOpt.value();
@@ -197,7 +228,7 @@ int main(int, char**)
 			ImGui::InputInt("Raw Width", &rawWidth);
 			ImGui::InputInt("Raw Height", &rawHeight);
 			fs::path p;
-			if (SimpleFileNavigation(path, p)) {
+			if (SimpleFileNavigation(path, p, false)) {
 				 auto imOpt = LoadImageFileRaw(p.string().c_str(), rawWidth, rawHeight);
 				if (imOpt.has_value()) {
 					auto val = imOpt.value();
@@ -293,6 +324,9 @@ int main(int, char**)
 			{
 				if (ImGui::MenuItem("Open", "Ctrl+O")) {
 					showFileSelect = true;
+				}
+				if (ImGui::MenuItem("Open Video", "Ctrl+O")) {
+					showVideoSelect = true;
 				}
 				if (ImGui::MenuItem("Open Raw", "Ctrl+O")) {
 					showFileSelectRaw = true;

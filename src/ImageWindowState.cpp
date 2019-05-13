@@ -8,6 +8,7 @@
 #include <utility>
 #include <functional>
 #include <tuple>
+#include <cstring>
 
 using namespace std;
 
@@ -50,15 +51,95 @@ optional<ImageWindowState> LoadImageFile(const char * filepath)
 			pixels,
 			GL_RGB,
 			fs::current_path().string(),
-			move(v)
+			v
 		};
 		return make_optional(im);
 	}
 }
 
+
+
+optional<ImageWindowStateVideo> LoadVideoFile(const char* path) {
+
+	auto it = fs::directory_iterator(path);
+	size_t counter = 0;
+	for (const auto &entry : it) {
+		counter++;
+	}
+
+	auto names = new const char*[counter];
+
+	size_t c = 0;
+	for (const auto &entry : fs::directory_iterator(path)) {
+		 names[c] = (new string(entry.path().string()))->c_str() ;
+		 c++;
+	}
+
+	std::sort( names, names + counter,
+			   []( const char *s1, const char *s2 ) { return std::strcmp( s1, s2 ) < 0; } );
+
+	auto images = new GLuint[counter];
+	auto data = new unsigned char * [counter];
+	int w, h;
+
+	for (size_t i = 0; i != counter; ++i) {
+		cout << i << endl;
+		GLuint tex_2d = images[i] = SOIL_load_OGL_texture(
+				names[i],
+				SOIL_LOAD_AUTO,
+				SOIL_CREATE_NEW_ID,
+				SOIL_FLAG_MIPMAPS
+		);
+		if (tex_2d == 0) {
+			cout << SOIL_last_result() << endl;
+			return nullopt;
+		} else {
+			glBindTexture(GL_TEXTURE_2D, tex_2d);
+
+
+			int miplevel = 0;
+			glGetTexLevelParameteriv(GL_TEXTURE_2D, miplevel, GL_TEXTURE_WIDTH, &w);
+			glGetTexLevelParameteriv(GL_TEXTURE_2D, miplevel, GL_TEXTURE_HEIGHT, &h);
+
+			data[i] =  new unsigned char[w * h * 3];
+			glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, data[i]);
+			glBindTexture(GL_TEXTURE_2D, 0);
+
+		}
+
+
+		delete  names[i];
+	}
+
+	delete[] names;
+
+	auto v = vector<IFilter*>();
+	IFilter * fil = new MainFilter(w, h);
+	fil->InitShader();
+	v.push_back(fil);
+
+	ImageWindowStateVideo im =  {
+			0,
+			w,
+			h,
+			1.0f,
+			string(path).c_str(),
+			imageID++,
+			nullptr,
+			GL_RGB,
+			fs::current_path().string(),
+			v,
+			images,
+			data,
+			counter
+	};
+
+	return make_optional(im);
+}
+
 optional<ImageWindowState> LoadImageFileRaw(const char * filepath, int width, int height) {
 	ifstream input(filepath, ios::binary);
-	std::vector<unsigned char> buffer(std::istreambuf_iterator<char>(input), {});
+	vector<unsigned char> buffer(istreambuf_iterator<char>(input), {});
 
 	unsigned char * flipBuffer = new unsigned char[width * height];
 
@@ -115,14 +196,14 @@ bool SaveImageFile(const char * filepath, ImageWindowState * image)
 }
 
 bool ReloadImage(ImageWindowState * image) {
-	glBindTexture(GL_TEXTURE_2D, image->texture);
+	glBindTexture(GL_TEXTURE_2D, image->texture());
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image->width, image->height, 0, image->colorFormat, GL_UNSIGNED_BYTE, image->data);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image->width, image->height, 0, image->colorFormat, GL_UNSIGNED_BYTE, image->data());
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	return true;
@@ -162,13 +243,13 @@ optional<ImageWindowState> CreateImage(unsigned char * pixels, int w, int h)
 }
 
 void fillBuffer(unsigned char* buffer, int w, int h,
-		const std::function<std::tuple<u_char, u_char, u_char>(int, int)> &value) {
+		const function<tuple<u_char, u_char, u_char>(int, int)> &value) {
 	for (int i = 0; i < h; i++) {
 		for (int j = 0; j < w; j++) {
 			auto val = value(i, j);
-			buffer[3 * (i * w + j)] = std::get<0>(val);
-			buffer[3 * (i * w + j) + 1] = std::get<1>(val);
-			buffer[3 * (i * w + j) + 2] = std::get<2>(val);
+			buffer[3 * (i * w + j)] = get<0>(val);
+			buffer[3 * (i * w + j) + 1] = get<1>(val);
+			buffer[3 * (i * w + j) + 2] = get<2>(val);
 		}
 	}
 }

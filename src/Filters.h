@@ -1,7 +1,11 @@
 #pragma once
 #include <glad/glad.h>
+#include <cstring>
 #include "FilesystemAdapter.h"
 #include "KnownMask.h"
+#include "ImageWindowState.h"
+
+struct ImageWindowStateVideo;
 
 void InitVertexBuffer();
 
@@ -48,6 +52,24 @@ struct MainFilter: IFilter {
 	void InitShader() override;
 	void RenderUI() override;
 	void ApplyFilter(GLuint prevTexture) override;
+};
+
+struct VideoFilter: IFilter {
+    GLuint _textureSampler;
+	ImageWindowStateVideo* videoState;
+    bool isPlaying = false;
+
+
+	VideoFilter(int w, int h, ImageWindowStateVideo* video_ptr) {
+		_width = w;
+		_height = h;
+		videoState = video_ptr;
+		_name = "Video";
+	}
+
+    void InitShader() override;
+    void RenderUI() override;
+    void ApplyFilter(GLuint prevTexture) override;
 };
 
 struct SingleBandFilter: IFilter {

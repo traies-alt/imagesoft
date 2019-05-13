@@ -114,6 +114,49 @@ void MainFilter::ApplyFilter(GLuint prevTexture)
 	DrawTexturedTriangles(prevTexture, _textureSampler);
 }
 
+void VideoFilter::InitShader()
+{
+    _programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/SimpleFragmentShader.fragmentshader");
+    _textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
+
+    if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
+        std::cout << "Error rendering to texture." << std::endl;
+        return;
+    }
+}
+
+void VideoFilter::RenderUI(){
+	if(ImGui::Button("Play")) {
+		isPlaying = true;
+	}
+
+	ImGui::SameLine();
+	if(ImGui::Button("Stop")) {
+		isPlaying = false;
+	}
+
+	if(ImGui::Button("Previous Frame")) {
+		videoState->prevFrame();
+	}
+
+	ImGui::SameLine();
+
+	if(ImGui::Button("Next Frame")) {
+		videoState->nextFrame();
+	}
+
+
+	if(isPlaying) {
+		videoState->nextFrame();
+	}
+
+}
+
+void VideoFilter::ApplyFilter(GLuint prevTexture)
+{
+    DrawTexturedTriangles(videoState->texture(), _textureSampler);
+}
+
 void SingleBandFilter::InitShader()
 {
 	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/SingleBand.frag");
@@ -175,7 +218,7 @@ void SubstractionFilter::RenderUI()
 	}
 	if (ImGui::BeginPopup("Choose image")) {
 		fs::path texFile;
-		if (SimpleFileNavigation(_path, texFile)) {
+		if (SimpleFileNavigation(_path, texFile, false)) {
 			GLuint _secondTex = SOIL_load_OGL_texture(
 				texFile.string().c_str(),
 				SOIL_LOAD_AUTO,
@@ -562,7 +605,7 @@ void OtsuThresholdFilter::ApplyFilter(GLuint prevTexture)
 			}
 		}
 
-			glUseProgram(_programID);
+		glUseProgram(_programID);
 		glUniform3f(_glThreshold, _threshold[0], _threshold[1], _threshold[2]);
 		DrawTexturedTriangles(prevTexture, _textureSampler);
 		_thresholdChanged = false;

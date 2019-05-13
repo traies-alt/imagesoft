@@ -12,8 +12,16 @@ using namespace std;
  * Returns true on file select.
  *
  */
-bool SimpleFileNavigation(string &path, fs::path &outFile)
+bool SimpleFileNavigation(string &path, fs::path &outFile, bool directory)
 {
+	if(directory) {
+		if (ImGui::Button("Choose Directory")) {
+			auto pathEntry = fs::directory_entry(path);
+			outFile = pathEntry.path().string();
+			return true;
+		}
+	}
+
 	ImGui::Text(path.c_str());
     if (ImGui::Button("..")) {
         auto pathEntry = fs::directory_entry(path);
@@ -24,8 +32,8 @@ bool SimpleFileNavigation(string &path, fs::path &outFile)
             if (fs::is_directory(entry.path().string())) {
                 path = entry.path().string();
             } else {
-								outFile = entry.path();
-								return true;
+                outFile = entry.path();
+                return true;
             }
         }
     }
@@ -48,10 +56,10 @@ bool ImageWindow(ImageWindowState &im, GLuint vertexBuffer, GLuint uvbuffer)
 	auto title = string("Image Window ").append(to_string(im.id));
 
 	ImGui::Begin(title.c_str());
-	if (im.texture != 0) {
+	if (im.texture() != 0) {
 			ImGui::SliderFloat("Zoom", &im.zoom, 0, 2.0f);
-			ImGui::Image(reinterpret_cast<ImTextureID>(im.texture), ImVec2(im.zoom * im.width, im.zoom * im.height));
-			GLuint t = im.texture;
+			ImGui::Image(reinterpret_cast<ImTextureID>(im.texture()), ImVec2(im.zoom * im.width, im.zoom * im.height));
+			GLuint t = im.texture();
 			GLuint ot;
 			for (auto const& filter: im.filters) {
 				t = filter->Draw(t);
@@ -89,7 +97,7 @@ bool ImageWindow(ImageWindowState &im, GLuint vertexBuffer, GLuint uvbuffer)
 			if (ImGui::BeginPopup("Save")) {
 				fs::path p;
 				static char saveFileName[50];
-				if (SimpleFileNavigation(im.outputPath, p)) {
+				if (SimpleFileNavigation(im.outputPath, p, false)) {
 						strncpy(saveFileName, p.filename().string().c_str(), 50);
 				}
 				ImGui::InputText("New image name", saveFileName, 50);
