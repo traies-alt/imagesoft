@@ -89,7 +89,7 @@ GLuint LoadShaders(const char * vertex_file_path,const char * fragment_file_path
 	glDeleteShader(VertexShaderID);
 	glDeleteShader(FragmentShaderID);
 
-	return ProgramID;
+    return ProgramID;
 }
 
 GLuint RandomTexture(size_t seed, int width, int height, GLuint texture)
@@ -117,13 +117,18 @@ GLuint RandomTexture(size_t seed, int width, int height, GLuint texture)
 
 GLuint WeightedTexture(int maskSize, float * weights, GLuint texture)
 {
+	return WeightedTexture2D(maskSize, maskSize, weights, texture);
+}
+
+GLuint WeightedTexture2D(int width, int height, float * weights, GLuint texture)
+{
 	glBindTexture(GL_TEXTURE_2D, texture);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, maskSize, maskSize, 0, GL_RED, GL_FLOAT, weights);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, width, height, 0, GL_RED, GL_FLOAT, weights);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	return texture;
 }

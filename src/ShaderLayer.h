@@ -10,3 +10,4 @@ int GetHistogram(GLuint texture, int w, int h, int band, float * hist);
 void GetHistogramAll(GLuint texture, int w, int h, float * hr, float * hg, float * hb);
 void GetMinMaxForSum(GLuint texture1, GLuint texture2,  int w, int h, float * min, float * max);
 GLuint WeightedTexture(int maskSize, float * weights, GLuint texture);
+GLuint WeightedTexture2D(int width, int height, float * weights, GLuint texture);

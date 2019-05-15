@@ -595,3 +595,38 @@ struct CannyFilter: IFilter {
 	void RenderUI() override;
 	void ApplyFilter(GLuint prevTexture) override;
 };
+
+struct ActiveBorder: IFilter {
+	GLuint _levelValueProgramId;
+
+	GLuint _levelValueFrameBuffer;
+
+	GLuint _levelValueTexture;
+	GLuint _maskWeightsTexture;
+
+	float* _levelValues;
+
+	bool _calculateAutomatically = false;
+	bool _doNextIteration = false;
+	bool _modified = false;
+	bool _showSquare = false;
+
+	int iterations = 10;
+	int _xs[2] = {0, 0};
+	int _ys[2] = {0, 0};
+	float _medianColorValue[3] = {0,0,0};
+
+	ActiveBorder(int w, int h) {
+		_width = w;
+		_height = h;
+		_name = "Active Border Filter";
+
+		_levelValues = new float[_width * _height]();
+	}
+
+	void InitShader() override;
+	void SetupShader();
+	void ApplySquare();
+	void RenderUI() override;
+	void ApplyFilter(GLuint prevTexture) override;
+};
