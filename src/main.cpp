@@ -375,7 +375,9 @@ int main(int, char**)
 						it = im->filters.erase(it);
 					} else {
 					    if(it != im->filters.begin()) {
-							ImGui::SameLine();
+                            ImGui::Checkbox("Enabled", &(*it)->_enabled);
+
+                            ImGui::SameLine();
 							if (ImGui::Button("Move Up")) {
 								std::iter_swap(it, it - 1);
 							}

@@ -17,10 +17,10 @@ void main() {
 	if(abs(value - outside) < 0.01) {
 		color = pixel;
 	} else if(abs(value - inside) < 0.01) {
-		color = pixel;
+		color = vec3(1,0,0);
 	} else if(abs(value - lout) < 0.01) {
-		color = vec3(1, 0, 0);
+		color = pixel;
 	} else if(abs(value - lin) < 0.01) {
-		color = vec3(0, 1, 0);
+		color = pixel;
 	}
 }

@@ -134,6 +134,10 @@ void VideoFilter::RenderUI(){
 	if(ImGui::Button("Stop")) {
 		isPlaying = false;
 	}
+    ImGui::SameLine();
+    if(ImGui::Button("Reset")) {
+        videoState->currentFrame = 0;
+    }
 
 	if(ImGui::Button("Previous Frame")) {
 		videoState->prevFrame();
@@ -1755,7 +1759,7 @@ void ActiveBorder::SetupShader() {
 	glUniform1f(glGetUniformLocation(_levelValueProgramId, "width"), _width);
 }
 
-void ActiveBorder::ApplySquare() {
+void ActiveBorder::ApplySquare(GLuint prevTexture) {
 	int xmin = min(_xs[0],_xs[1]);
 	int xmax = max(_xs[0],_xs[1]);
 	int ymin = min(_ys[0],_ys[1]);
@@ -1796,84 +1800,84 @@ void ActiveBorder::ApplySquare() {
 
 		}
 	}
+
+    int counter = 0;
+    float acumulator[3] = {0, 0, 0};
+    auto prev_pixes = (unsigned char *) malloc((size_t)3 * _width * _height);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, prevTexture);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, prev_pixes);
+
+    for (int x = 0; x < _width; ++x) {
+        for (int y = 0; y < _height; ++y) {
+            if (_levelValues[y * _width + x] == 0) {
+                long pos = 3 * (y * _width + x);
+                for (int i = 0; i < 3; i++) {
+                    acumulator[i] += prev_pixes[pos + i];
+                }
+
+                counter++;
+            }
+        }
+    }
+
+    free(prev_pixes);
+
+    for (int i = 0; i < 3; i++) {
+        _medianColorValue[i] = acumulator[i] / float(counter) / 255.0f;
+    }
+
+    glUniform3f(glGetUniformLocation(_levelValueProgramId, "omega"),
+                _medianColorValue[0], _medianColorValue[1], _medianColorValue[2]);
+
+    _maskWeightsTexture = WeightedTexture2D(_width, _height, _levelValues, _maskWeightsTexture);
 }
 
-void ActiveBorder::RenderUI()
-{
-
-	_doNextIteration = false;
+void ActiveBorder::RenderUI() {
 
     ImGui::Text("Initial Square");
     _modified = false;
-	_modified |= ImGui::SliderInt2("X", _xs, 0, _width);
-	_modified |= ImGui::SliderInt2("Y", _ys, 0, _height);
+    _modified |= ImGui::SliderInt2("X", _xs, 0, _width);
+    _modified |= ImGui::SliderInt2("Y", _ys, 0, _height);
 
-
-	if(ImGui::Button("Re-Apply Square")) {
-		ApplySquare();
-	}
-
-	ImGui::SameLine();
-
-	ImGui::Checkbox("stop Calculation", &_showSquare);
+    ImGui::Checkbox("stop Calculation", &_showSquare);
 
     ImGui::Text("");
 
-
-    ImGui::Checkbox("Calculate automatically", &_calculateAutomatically);
-
-    if(!_calculateAutomatically) {
-    	_doNextIteration = ImGui::Button("Do next Iteration");
-    }
+    ImGui::SliderInt("Iterations", &_iterations, 0, _width);
+    ImGui::SliderFloat("Precision", &_precision, 0, 1);
 }
 
-void ActiveBorder::ApplyFilter(GLuint prevTexture)
-{
+void ActiveBorder::ApplyFilter(GLuint prevTexture) {
+    static bool isFirst = false;
+
+    isFirst = false;
+
 	SetupShader();
 	if(_showSquare) {
-		ApplySquare();
+		ApplySquare(prevTexture);
+		isFirst = true;
 	}
 
-	int counter = 0;
-	float acumulator[3] = {0, 0, 0};
-	auto prev_pixes = (unsigned char *) malloc((size_t)3 * _width * _height);
 
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, prevTexture);
-	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, prev_pixes);
-
-	for (int x = 0; x < _width; ++x) {
-		for (int y = 0; y < _height; ++y) {
-			if (_levelValues[y * _width + x] == 0) {
-				long pos = 3 * (y * _width + x);
-				for (int i = 0; i < 3; i++) {
-					acumulator[i] += prev_pixes[pos + i];
-				}
-
-				counter++;
-			}
-		}
-	}
-
-	free(prev_pixes);
-
-	for (int i = 0; i < 3; i++) {
-		_medianColorValue[i] = acumulator[i] / float(counter) / 255.0f;
-	}
-
-	glUniform3f(glGetUniformLocation(_levelValueProgramId, "omega"),
-			_medianColorValue[0], _medianColorValue[1], _medianColorValue[2]);
-	glUniform1i(glGetUniformLocation(_levelValueProgramId, "shouldMove"), false);
-
+	int iterations = _iterations;
 	GLuint levelValueSampleLocationCalculator = glGetUniformLocation(_levelValueProgramId, "levelValueSampler");
 	GLuint textSampleLocationCalculator = glGetUniformLocation(_levelValueProgramId, "myTextureSampler");
+    glUniform1f(glGetUniformLocation(_levelValueProgramId, "prec"),_precision);
 
-	glBindFramebuffer(GL_FRAMEBUFFER, _levelValueFrameBuffer);
-	glUseProgram(_levelValueProgramId);
-	ApplyTexture(_levelValueProgramId, _maskWeightsTexture, levelValueSampleLocationCalculator);
-	DrawTexturedTriangles(prevTexture, textSampleLocationCalculator);
+    if(isFirst) {
+		glUniform1i(glGetUniformLocation(_levelValueProgramId, "shouldMove"), false);
 
-	for (int i = 1; i<600 && !_showSquare; ++i) {
+        glBindFramebuffer(GL_FRAMEBUFFER, _levelValueFrameBuffer);
+		glUseProgram(_levelValueProgramId);
+		ApplyTexture(_levelValueProgramId, _maskWeightsTexture, levelValueSampleLocationCalculator);
+		DrawTexturedTriangles(prevTexture, textSampleLocationCalculator);
+		iterations = _iterations;
+	}
+
+
+	for (int i = 1; i < iterations && !_showSquare; ++i) {
 		glUniform1i(glGetUniformLocation(_levelValueProgramId, "shouldMove"), 1);
 		glBindFramebuffer(GL_FRAMEBUFFER, _levelValueFrameBuffer);
 		glUseProgram(_levelValueProgramId);

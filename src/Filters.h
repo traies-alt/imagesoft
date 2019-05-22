@@ -20,6 +20,7 @@ struct IFilter {
 	int _width;
 	int _height;
 
+	bool _enabled = true;
 	char * _name;
 	GLuint _programID;
 	GLuint _outputFramebuffer;
@@ -30,6 +31,10 @@ struct IFilter {
 
 	GLuint Draw(GLuint prevTexture)
 	{
+	    if(!_enabled) {
+	        return prevTexture;
+	    }
+
 		glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
 		glViewport(0,0,_width,_height);
 		glUseProgram(_programID);
@@ -606,12 +611,12 @@ struct ActiveBorder: IFilter {
 
 	float* _levelValues;
 
-	bool _calculateAutomatically = false;
-	bool _doNextIteration = false;
+	int _iterations = 0;
 	bool _modified = false;
-	bool _showSquare = false;
+	bool _showSquare = true;
 
-	int iterations = 10;
+	float _precision = 0.5f;
+
 	int _xs[2] = {0, 0};
 	int _ys[2] = {0, 0};
 	float _medianColorValue[3] = {0,0,0};
@@ -626,7 +631,7 @@ struct ActiveBorder: IFilter {
 
 	void InitShader() override;
 	void SetupShader();
-	void ApplySquare();
+	void ApplySquare(GLuint prevTexture);
 	void RenderUI() override;
 	void ApplyFilter(GLuint prevTexture) override;
 };
