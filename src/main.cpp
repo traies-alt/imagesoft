@@ -481,9 +481,15 @@ int main(int, char**)
 				FilterButton("Canny Filter", [](int width, int height){
 					return new CannyFilter(width, height);
 				});
-                FilterButton("Active Border Filter", [](int width, int height){
-                    return new ActiveBorder(width, height);
-                });
+				FilterButton("Hugh Filter", [](int width, int height){
+					return new HughFilter(width, height);
+				});
+				FilterButton("Hugh Cicle Filter", [](int width, int height){
+					return new HughCircleFilter(width, height);
+				});
+				FilterButton("Active Border Filter", [](int width, int height){
+						return new ActiveBorder(width, height);
+				});
 				ImGui::EndPopup();
 			}
 			ImGui::End();

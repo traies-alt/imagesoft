@@ -266,3 +266,24 @@ void GetMinMaxForSum(GLuint texture1, GLuint texture2,  int w, int h, float * mi
 	delete[] pixels1;
 	delete[] pixels2;
 }
+
+void CopyTextureToMemory(GLuint texture, unsigned char * pixels)
+{
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+}
+
+void CopyMemoryToTexture(unsigned char * pixels, int w, int h, GLuint texture) 
+{
+	glBindTexture(GL_TEXTURE_2D, texture);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+	
+	printf("%i\n", glGetError());
+	glBindTexture(GL_TEXTURE_2D, 0);
+}

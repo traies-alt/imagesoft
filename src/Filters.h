@@ -4,6 +4,8 @@
 #include "FilesystemAdapter.h"
 #include "KnownMask.h"
 #include "ImageWindowState.h"
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 struct ImageWindowStateVideo;
 
@@ -599,6 +601,61 @@ struct CannyFilter: IFilter {
 	void InitShader() override;
 	void RenderUI() override;
 	void ApplyFilter(GLuint prevTexture) override;
+};
+
+struct HughFilter: IFilter {
+	GLuint _textureSampler;
+	GLuint _drawnText;
+	GLuint _lastPrevTexture;
+	unsigned char * _pixels = nullptr;
+	unsigned char * _pixelsOut = nullptr;
+	int * _acumulator = nullptr;
+	int _ro_discr;
+	int _theta_discr;
+	float _epsilon = 0.6;
+	int _cutoff = 10;
+	// float _theta[2] = {-M_PI_2, M_PI_2};
+	// float _
+
+	HughFilter(int w, int h) {
+		_width = w;
+		_height = h;
+		_name = "Hugh Filter";
+	}
+
+	void InitShader() override;
+	void RenderUI() override;
+	void ApplyFilter(GLuint prevTexture) override;
+	void BuildAcumulator();
+	void ResetPixelsOut();
+};
+
+struct HughCircleFilter: IFilter {
+	GLuint _textureSampler;
+	GLuint _drawnText;
+	GLuint _lastPrevTexture;
+	unsigned char * _pixels = nullptr;
+	unsigned char * _pixelsOut = nullptr;
+	int * _acumulator = nullptr;
+	int _width_discr;
+	int _height_discr;
+	int _r_discr;
+	float _epsilon = 40;
+	int _cutoff = 50;
+	// float _theta[2] = {-M_PI_2, M_PI_2};
+	// float _
+
+	HughCircleFilter(int w, int h) {
+		_width = w;
+		_height = h;
+		_name = "Hugh Circle Filter";
+	}
+
+	void InitShader() override;
+	void RenderUI() override;
+	void ApplyFilter(GLuint prevTexture) override;
+	void BuildAcumulator();
+	void ResetPixelsOut();
 };
 
 struct ActiveBorder: IFilter {

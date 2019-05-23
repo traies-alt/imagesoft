@@ -5,7 +5,6 @@
 #include <string>
 #include "UIComponents.h"
 #include "ShaderLayer.h"
-#define _USE_MATH_DEFINES
 #include <math.h>
 #include "KnownMask.h"
 
@@ -1727,6 +1726,267 @@ void CannyFilter::RenderUI()
 void CannyFilter::ApplyFilter(GLuint prevTexture)
 {
 	DrawTexturedTriangles(prevTexture, _textureSampler);	
+}
+
+void HughFilter::InitShader()
+{
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/Hugh.frag");
+	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
+	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture))
+	{
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+	glUseProgram(_programID);
+	int D = max(_width, _height);
+	_ro_discr = 10;
+	_theta_discr = 10;
+
+	GLuint textures[1];
+	glGenTextures(1, textures);
+	_drawnText = textures[0];
+	
+	BuildAcumulator();
+}
+
+void HughFilter::BuildAcumulator()
+{
+	if (_acumulator != nullptr) {
+		delete[] _acumulator;
+	}
+	_acumulator = new int[_theta_discr * _ro_discr];
+}
+
+void HughFilter::ResetPixelsOut()
+{
+	int D = max(_width, _height);
+	CopyTextureToMemory(_lastPrevTexture, _pixels);
+
+	for (int m = 0; m < _theta_discr; m++) {
+		for (int n = 0; n < _ro_discr; n++) {
+			_acumulator[n * _theta_discr + m] = 0;
+		}
+	}
+	for (int i = 0; i < _width; i++) {
+		for (int j = 0; j < _height; j++) {
+			// For each pixel
+			if (_pixels[3 * (j * _width + i)] > 127) {
+				float x = i - _width / 2.0f;
+				float y = j - _height / 2.0f;
+				for (float m = 0; m < _theta_discr; m++) {
+					for (float n = 0; n < _ro_discr; n++) {
+						// For each [ro, theta] pair
+						float theta = (m / _theta_discr - 0.5f) * M_PI;
+						float ro = (n / _ro_discr - 0.5f) * 2 * M_SQRT1_2 * D;
+						if (abs(x * cosf(theta) + y * sinf(theta) - ro) < _epsilon) {
+							_acumulator[(int)(n * _theta_discr + m)]++;
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	for (int i = 0; i < _width; i++) {
+		for (int j = 0; j < _height; j++) {
+			// For each pixel
+			float x = i - _width / 2.0f;
+			float y = j - _height / 2.0f;
+			_pixelsOut[3 * (j * _width + i)] = _pixels[3 * (j * _width + i)];
+			_pixelsOut[3 * (j * _width + i) + 1] = _pixels[3 * (j * _width + i) + 1];
+			_pixelsOut[3 * (j * _width + i) + 2] = _pixels[3 * (j * _width + i) + 2];
+			bool breakout = false;
+			for (float m = 0; !breakout && m < _theta_discr; m++) {
+				for (float n = 0; !breakout && n < _ro_discr; n++) {
+					// For each [ro, theta] pair
+					if (_acumulator[(int)(n * _theta_discr + m)] > _cutoff) {
+						float theta = (m / _theta_discr - 0.5f) * M_PI;
+						float ro = (n / _ro_discr - 0.5f) * 2 * M_SQRT1_2 * D;
+						if (abs(x * cosf(theta) + y * sinf(theta) - ro) < _epsilon) {
+							_pixelsOut[3 * (j * _width + i)] = 0;
+							_pixelsOut[3 * (j * _width + i) + 1] = 0;
+							_pixelsOut[3 * (j * _width + i) + 2] = 255;
+							breakout = true;
+						} 
+					}
+				}
+			}
+		}
+	}
+	CopyMemoryToTexture(_pixelsOut, _width, _height, _drawnText);
+}
+
+void HughFilter::RenderUI()
+{
+	int D = max(_width, _height);
+	bool acumModified = false;
+	acumModified |= ImGui::InputInt("theta", &_theta_discr, 1, 10);
+	acumModified |= ImGui::InputInt("ro", &_ro_discr, 1, 10);
+	clamp(_theta_discr, 1, 360);
+	clamp(_ro_discr, 1, D);
+	if (acumModified) {
+		BuildAcumulator();
+	}
+	ImGui::InputFloat("epsilon", &_epsilon, 0.001, 0.01, 3);
+	ImGui::InputInt("cutoff", &_cutoff);
+
+	if (ImGui::Button("Apply")) {
+		ResetPixelsOut();
+	}
+}
+
+void HughFilter::ApplyFilter(GLuint prevTexture)
+{
+	_lastPrevTexture = prevTexture;
+	if (_pixels == nullptr) {
+		_pixels = new unsigned char[3 * _width * _height];
+		_pixelsOut = new unsigned char[3 * _width * _height];
+		CopyTextureToMemory(prevTexture, _pixels);
+		ResetPixelsOut();
+	}
+	if (_pixelsOut == nullptr) {
+		DrawTexturedTriangles(prevTexture, _textureSampler);	
+	} else {
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, _drawnText);
+		DrawTexturedTriangles(_drawnText, _textureSampler);	
+	}
+}
+
+
+void HughCircleFilter::InitShader()
+{
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/Hugh.frag");
+	_textureSampler = glGetUniformLocation(_programID, "myTextureSampler");
+	if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture))
+	{
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+	glUseProgram(_programID);
+	_width_discr = 10;
+	_height_discr = 10;
+	_r_discr = 40;
+	GLuint textures[1];
+	glGenTextures(1, textures);
+	_drawnText = textures[0];
+	
+	BuildAcumulator();
+}
+
+void HughCircleFilter::BuildAcumulator()
+{
+	if (_acumulator != nullptr) {
+		delete[] _acumulator;
+	}
+	_acumulator = new int[_width_discr * _height_discr * _r_discr];
+}
+
+void HughCircleFilter::ResetPixelsOut()
+{
+	int D = min(_width, _height);
+	CopyTextureToMemory(_lastPrevTexture, _pixels);
+
+	for (int m = 0; m < _width_discr; m++) {
+		for (int n = 0; n < _height_discr; n++) {
+			for (int l = 0; l < _r_discr; l++) {
+				_acumulator[(n * _width_discr + m) * _r_discr + l] = 0;
+			}
+		}
+	}
+
+	for (int i = 0; i < _width; i++) {
+		for (int j = 0; j < _height; j++) {
+			// For each pixel
+			if (_pixels[3 * (j * _width + i)] > 127) {
+				float x = i - _width / 2.0f;
+				float y = j - _height / 2.0f;
+				for (float m = 0; m < _width_discr; m++) {
+					float a = (m / _width_discr - 0.5f) * _width;
+					for (float n = 0; n < _height_discr; n++) {
+						float b = (n / _height_discr - 0.5f) * _height;
+						for (float l = 0; l < _r_discr; l++) {
+							// For each [ro, theta] pair
+							float r = (l / _r_discr) * D;
+							if (abs((x-a) * (x-a) + (y-b) * (y-b) - r * r) < _epsilon) {
+								_acumulator[(int)((n * _width_discr + m) * _r_discr + l)]++;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	for (int i = 0; i < _width; i++) {
+		for (int j = 0; j < _height; j++) {
+			// For each pixel
+			float x = i - _width / 2.0f;
+			float y = j - _height / 2.0f;
+			_pixelsOut[3 * (j * _width + i)] = _pixels[3 * (j * _width + i)];
+			_pixelsOut[3 * (j * _width + i) + 1] = _pixels[3 * (j * _width + i) + 1];
+			_pixelsOut[3 * (j * _width + i) + 2] = _pixels[3 * (j * _width + i) + 2];
+			bool breakout = false;
+			for (float m = 0; !breakout && m < _width_discr; m++) {
+				for (float n = 0; !breakout && n < _height_discr; n++) {
+					for (float l = 0; !breakout && l < _r_discr; l++) {
+						// For each [ro, theta] pair
+						if (_acumulator[(int)((n * _width_discr + m) * _r_discr + l)] > _cutoff) {
+							float a = (m / _width_discr - 0.5f) * _width;
+							float b = (n / _height_discr - 0.5f) * _height;
+							float r = (l / _r_discr) * D;
+							if (abs((x-a) * (x-a) + (y-b) * (y-b) - r * r) < _epsilon) {
+								_pixelsOut[3 * (j * _width + i)] = 0;
+								_pixelsOut[3 * (j * _width + i) + 1] = 0;
+								_pixelsOut[3 * (j * _width + i) + 2] = 255;
+								breakout = true;
+							} 
+						}
+					}
+				}
+			}
+		}
+	}
+	CopyMemoryToTexture(_pixelsOut, _width, _height, _drawnText);
+}
+
+void HughCircleFilter::RenderUI()
+{
+	int D = min(_width, _height);
+	bool acumModified = false;
+	acumModified |= ImGui::InputInt("width discr", &_width_discr, 1, 10);
+	acumModified |= ImGui::InputInt("height discr", &_height_discr, 1, 10);
+	acumModified |= ImGui::InputInt("radius discr", &_r_discr, 1, 10);
+	clamp(_width_discr, 1, _width);
+	clamp(_height_discr, 1, _height);
+	clamp(_r_discr, 1, D);
+	if (acumModified) {
+		BuildAcumulator();
+	}
+	ImGui::InputFloat("epsilon", &_epsilon, 0.001, 0.01, 3);
+	ImGui::InputInt("cutoff", &_cutoff);
+
+	if (ImGui::Button("Apply")) {
+		ResetPixelsOut();
+	}
+}
+
+void HughCircleFilter::ApplyFilter(GLuint prevTexture)
+{
+	_lastPrevTexture = prevTexture;
+	if (_pixels == nullptr) {
+		_pixels = new unsigned char[3 * _width * _height];
+		_pixelsOut = new unsigned char[3 * _width * _height];
+		CopyTextureToMemory(prevTexture, _pixels);
+		ResetPixelsOut();
+	}
+	if (_pixelsOut == nullptr) {
+		DrawTexturedTriangles(prevTexture, _textureSampler);	
+	} else {
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, _drawnText);
+		DrawTexturedTriangles(_drawnText, _textureSampler);	
+	}
 }
 
 void ActiveBorder::InitShader() {
