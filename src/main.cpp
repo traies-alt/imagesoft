@@ -490,6 +490,9 @@ int main(int, char**)
 				FilterButton("Active Border Filter", [](int width, int height){
 						return new ActiveBorder(width, height);
 				});
+				FilterButton("Harris Filter", [](int width, int height){
+					return new HarrisFilter(width, height);
+				});
 				ImGui::EndPopup();
 			}
 			ImGui::End();

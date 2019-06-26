@@ -511,7 +511,7 @@ struct LaplaceFilter: IFilter {
 	GLuint _glThreshold;
 	GLuint _glMax2;
 
-	GLuint _glMaskSize;	
+	GLuint _glMaskSize;
 	GLuint _glMaskSampler;
 	GLuint _maskWeightsTexture;
 	GLuint _glWidth;
@@ -691,4 +691,58 @@ struct ActiveBorder: IFilter {
 	void ApplySquare(GLuint prevTexture);
 	void RenderUI() override;
 	void ApplyFilter(GLuint prevTexture) override;
+};
+
+struct HarrisFilter: IFilter {
+
+	GLuint _maskProgramId;
+	GLuint _lxFrameBuffer;
+	GLuint _lxTexture;
+
+	GLuint _lyFrameBuffer;
+	GLuint _lyTexture;
+
+	GLuint _multProgramId;
+
+	GLuint _lx2FrameBuffer;
+	GLuint _lx2Texture;
+
+	GLuint _ly2FrameBuffer;
+	GLuint _ly2Texture;
+
+	GLuint _lxyFrameBuffer;
+	GLuint _lxyTexture;
+
+	GLuint _cimProgramId;
+	GLuint _cimFrameBuffer;
+	GLuint _cimTexture;
+
+	GLuint _pxmaskWeightsTexture;
+	GLuint _pymaskWeightsTexture;
+	GLuint _gaussmaskWeightsTexture;
+
+	float  * _pxweights;
+	float  * _pyweights;
+	float  * _guassweights;
+
+	float _prewitMaskDivision = 1.0f;
+	float _gaussMaskDivision;
+	float _threshold = 0.001f;
+    float _color[3] = {1.0f, 1.0f, 0};
+
+	HarrisFilter(int w, int h) {
+        _width = w;
+        _height = h;
+        _name = "Harris";
+
+		_pxweights = new float[3*3];
+		_pyweights = new float[3*3];
+		_guassweights = new float[7*7];
+    }
+
+    void InitShader() override;
+    void RenderUI() override;
+    void SetupPrewitt(bool isX);
+    void SetupGauss();
+    void ApplyFilter(GLuint prevTexture) override;
 };

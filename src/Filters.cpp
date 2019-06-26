@@ -2154,3 +2154,148 @@ void ActiveBorder::ApplyFilter(GLuint prevTexture) {
 	DrawTexturedTriangles(prevTexture, glGetUniformLocation(_programID, "myTextureSampler"));
 
 }
+
+void HarrisFilter::InitShader() {
+
+	int size = 0;
+	setupPrewittHorizontal(&size, _pxweights);
+	setupPrewittVertical(&size, _pyweights);
+
+	int _maskSize = 7;
+	int _sigma = 2;
+
+	float sqrSigma = _sigma * _sigma;
+	_gaussMaskDivision = 0;
+	for (float i = 0; i < _maskSize; i++) {
+		for (float j = 0; j < _maskSize; j++) {
+			float normalX = i / (_maskSize - 1) - 0.5;
+			float normalY = j / (_maskSize - 1) - 0.5;
+			float w = GaussianWeight(normalX, normalY, sqrSigma);
+			_gaussMaskDivision += w;
+			_guassweights[(int)(i * _maskSize + j)] = w;
+		}
+	}
+
+	glGenTextures(1, &_lxTexture);
+	glGenTextures(1, &_lyTexture);
+	glGenTextures(1, &_lx2Texture);
+	glGenTextures(1, &_ly2Texture);
+	glGenTextures(1, &_lxyTexture);
+	glGenTextures(1, &_pxmaskWeightsTexture);
+	glGenTextures(1, &_pymaskWeightsTexture);
+	glGenTextures(1, &_gaussmaskWeightsTexture);
+
+    _maskProgramId = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/Mask.frag");
+	_multProgramId = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/Multiply.frag");
+	_programID = LoadShaders("./src/shaders/Passthrough.vert", "./src/shaders/HarrisCIM1.frag");
+
+    if (!InitOutputTexture(_width, _height, _outputFramebuffer, _outputTexture)) {
+        std::cout << "Error rendering to texture." << std::endl;
+        return;
+    }
+
+	if (!InitOutputTexture(_width, _height, _lxFrameBuffer, _lxTexture)){
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+
+	if (!InitOutputTexture(_width, _height, _lyFrameBuffer, _lyTexture)){
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+
+	if (!InitOutputTexture(_width, _height, _lx2FrameBuffer, _lx2Texture)){
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+
+	if (!InitOutputTexture(_width, _height, _ly2FrameBuffer, _ly2Texture)){
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+
+	if (!InitOutputTexture(_width, _height, _lxyFrameBuffer, _lxyTexture)){
+		std::cout << "Error rendering to texture." << std::endl;
+		return;
+	}
+
+
+	_pxmaskWeightsTexture = WeightedTexture(3, _pxweights, _pxmaskWeightsTexture);
+	_pymaskWeightsTexture = WeightedTexture(3, _pyweights, _pymaskWeightsTexture);
+	_gaussmaskWeightsTexture = WeightedTexture(7, _guassweights, _gaussmaskWeightsTexture);
+
+
+}
+
+void HarrisFilter::SetupPrewitt(bool isX) {
+    glUseProgram(_maskProgramId);
+    glUniform1f(glGetUniformLocation(_maskProgramId, "maskSize"), 3);
+    glUniform1f(glGetUniformLocation(_maskProgramId, "width"), _width);
+    glUniform1f(glGetUniformLocation(_maskProgramId, "height"), _height);
+    glUniform1f(glGetUniformLocation(_maskProgramId, "maskDivision"), _prewitMaskDivision);
+
+    if(isX) {
+		ApplyTexture(_maskProgramId, _pxmaskWeightsTexture, glGetUniformLocation(_maskProgramId, "maskWeights"));
+    } else {
+		ApplyTexture(_maskProgramId, _pymaskWeightsTexture, glGetUniformLocation(_maskProgramId, "maskWeights"));
+    }
+}
+
+void HarrisFilter::SetupGauss() {
+    glUseProgram(_maskProgramId);
+    glUniform1f(glGetUniformLocation(_maskProgramId, "maskSize"), 7);
+    glUniform1f(glGetUniformLocation(_maskProgramId, "width"), _width);
+    glUniform1f(glGetUniformLocation(_maskProgramId, "height"), _height);
+    glUniform1f(glGetUniformLocation(_maskProgramId, "maskDivision"), _gaussMaskDivision);
+	ApplyTexture(_maskProgramId, _gaussmaskWeightsTexture, glGetUniformLocation(_maskProgramId, "maskWeights"));
+}
+
+void HarrisFilter::RenderUI() {
+
+	ImGui::InputFloat("Threshold", &_threshold, 0.001f);
+    ImGui::ColorEdit3("Color", _color);
+}
+
+void HarrisFilter::ApplyFilter(GLuint prevTexture) {
+
+    glBindFramebuffer(GL_FRAMEBUFFER, _lxFrameBuffer);
+	SetupPrewitt(true);
+    DrawTexturedTriangles(prevTexture, glGetUniformLocation(_maskProgramId, "myTextureSampler"));
+
+    glBindFramebuffer(GL_FRAMEBUFFER, _lyFrameBuffer);
+	SetupPrewitt(false);
+    DrawTexturedTriangles(prevTexture, glGetUniformLocation(_maskProgramId, "myTextureSampler"));
+
+    glBindFramebuffer(GL_FRAMEBUFFER, _lx2FrameBuffer);
+    glUseProgram(_multProgramId);
+    ApplyTexture(_multProgramId, _lxTexture, glGetUniformLocation(_multProgramId, "myTextureSampler2"));
+    DrawTexturedTriangles(_lxTexture, glGetUniformLocation(_multProgramId, "myTextureSampler1"));
+    SetupGauss();
+	DrawTexturedTriangles(_lx2Texture, glGetUniformLocation(_maskProgramId, "myTextureSampler"));
+
+
+	glBindFramebuffer(GL_FRAMEBUFFER, _ly2FrameBuffer);
+    glUseProgram(_multProgramId);
+    ApplyTexture(_multProgramId, _lyTexture, glGetUniformLocation(_multProgramId, "myTextureSampler2"));
+    DrawTexturedTriangles(_lyTexture, glGetUniformLocation(_multProgramId, "myTextureSampler1"));
+	SetupGauss();
+	DrawTexturedTriangles(_ly2Texture, glGetUniformLocation(_maskProgramId, "myTextureSampler"));
+
+    glBindFramebuffer(GL_FRAMEBUFFER, _lxyFrameBuffer);
+    glUseProgram(_multProgramId);
+    ApplyTexture(_multProgramId, _lyTexture, glGetUniformLocation(_multProgramId, "myTextureSampler2"));
+    DrawTexturedTriangles(_lxTexture, glGetUniformLocation(_multProgramId, "myTextureSampler1"));
+	SetupGauss();
+	DrawTexturedTriangles(_lxyTexture, glGetUniformLocation(_maskProgramId, "myTextureSampler"));
+
+    glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
+    ApplyTextureNumber(_programID, _lx2Texture, glGetUniformLocation(_programID, "lx2"), GL_TEXTURE1, 1);
+	ApplyTextureNumber(_programID, _ly2Texture, glGetUniformLocation(_programID, "ly2"), GL_TEXTURE2, 2);
+	ApplyTextureNumber(_programID, _lxyTexture, glGetUniformLocation(_programID, "lxy"), GL_TEXTURE3, 3);
+	glUniform1f(glGetUniformLocation(_programID, "threshold"), _threshold);
+	glUniform3f(glGetUniformLocation(_programID, "pointColor"), _color[0], _color[1], _color[2]);
+
+	glUseProgram(_programID);
+    DrawTexturedTriangles(prevTexture, glGetUniformLocation(_programID, "myTextureSampler"));
+
+}
