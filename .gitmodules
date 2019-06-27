@@ -10,3 +10,9 @@
 [submodule "deps/DevIL"]
 	path = deps/DevIL
 	url = git@github.com:DentonW/DevIL.git
+[submodule "deps/opencv"]
+	path = deps/opencv
+	url = git@github.com:opencv/opencv.git
+[submodule "deps/opencv_contrib"]
+	path = deps/opencv_contrib
+	url = git@github.com:opencv/opencv_contrib.git
