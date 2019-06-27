@@ -35,6 +35,8 @@ if (OPENGL_FOUND)
     target_include_directories(ImageSoft PUBLIC ${OPENGL_INCLUDE_DIR})
     target_link_libraries(ImageSoft ${OPENGL_gl_LIBRARY})
 endif(OPENGL_FOUND)
+find_package(OpenCV REQUIRED )
+target_link_libraries(ImageSoft ${OpenCV_LIBS})
 
 
 
