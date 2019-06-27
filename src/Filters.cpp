@@ -2253,6 +2253,7 @@ void HarrisFilter::SetupGauss() {
 void HarrisFilter::RenderUI() {
 
 	ImGui::InputFloat("Threshold", &_threshold, 0.001f);
+	ImGui::InputFloat("K", &_k, 0.001f);
 	ImGui::InputFloat("CIM", &_cimV, 1);
     ImGui::ColorEdit3("Color", _color);
 }
@@ -2295,6 +2296,7 @@ void HarrisFilter::ApplyFilter(GLuint prevTexture) {
 	ApplyTextureNumber(_programID, _lxyTexture, glGetUniformLocation(_programID, "lxy"), GL_TEXTURE3, 3);
 	glUniform1f(glGetUniformLocation(_programID, "threshold"), _threshold);
 	glUniform1f(glGetUniformLocation(_programID, "cimV"), _cimV);
+	glUniform1f(glGetUniformLocation(_programID, "k"), _k);
 	glUniform3f(glGetUniformLocation(_programID, "pointColor"), _color[0], _color[1], _color[2]);
 
 	glUseProgram(_programID);
