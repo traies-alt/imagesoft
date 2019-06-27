@@ -47,6 +47,7 @@ struct SiftState {
 	int k = 2;
 	float edgeThreshold = 10, contrastThreshold = 0.03, sigma = 1.6f;
 	int octaveLayers = 2;
+	int maxFeatures = 0;
 };
 
 
@@ -206,7 +207,7 @@ int real_main(int, char**)
 					}
 					ImGui::EndPopup();
 			}
-			
+
 			if (ImGui::BeginPopup("SecondImage")) {
 					if (SimpleFileNavigation(siftState.p2, siftState.path2, false)) {
 							ImGui::CloseCurrentPopup();
@@ -252,11 +253,14 @@ int real_main(int, char**)
 			if (ImGui::InputInt("Octave Layers", &siftState.octaveLayers)) {
 				siftState.pending_update = true;
 			}
+			if (ImGui::InputInt("Max Features", &siftState.maxFeatures)) {
+				siftState.pending_update = true;
+			}
 			if (siftState.b1 && siftState.b2) {
 				if (siftState.pending_update && siftState.b1 && siftState.b2) {
 					siftState.img1 = cv::imread(siftState.path1.string().c_str(), cv::IMREAD_GRAYSCALE);
 					siftState.img2 = cv::imread(siftState.path2.string().c_str(), cv::IMREAD_GRAYSCALE);
-					auto detector = cv::xfeatures2d::SiftFeatureDetector::create(0, siftState.octaveLayers, siftState.contrastThreshold, siftState.edgeThreshold, siftState.sigma);
+					auto detector = cv::xfeatures2d::SiftFeatureDetector::create(siftState.maxFeatures, siftState.octaveLayers, siftState.contrastThreshold, siftState.edgeThreshold, siftState.sigma);
 					cv::Mat descriptors1, descriptors2;
 					detector->detectAndCompute(siftState.img1, cv::noArray(), siftState.keypoints1, descriptors1);
 					detector->detectAndCompute(siftState.img2, cv::noArray(), siftState.keypoints2, descriptors2);
@@ -488,10 +492,10 @@ int real_main(int, char**)
 				ImGui::EndMenu();
 			}
 			if (ImGui::BeginMenu("SIFT"))
-			{   
+			{
 					sift = true;
 					ImGui::EndMenu();
-			}   
+			}
 			ImGui::EndMainMenuBar();
 		}
 
