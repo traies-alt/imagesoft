@@ -7,6 +7,8 @@ uniform sampler2D lx2;
 uniform sampler2D ly2;
 uniform sampler2D lxy;
 uniform float threshold;
+uniform float k;
+uniform float cimV;
 uniform vec3 pointColor;
 
 void main() {
@@ -16,7 +18,15 @@ void main() {
 		vec3 lx2v = texture(lx2, UV).rgb;
 		vec3 ly2v = texture(ly2, UV).rgb;
 		vec3 lxyv = texture(lxy, UV).rgb;
-		vec3 cim = (lx2v * ly2v - (lxyv * lxyv)) - (lx2v + ly2v) * (lx2v + ly2v) * 0.04f;
+		vec3 cim = vec3(0);
+
+		if(cimV == 1) {
+			cim = (lx2v * ly2v - (lxyv * lxyv)) - ((lx2v + ly2v) * (lx2v + ly2v) * k);
+		} else if(cimV == 2) {
+			cim = (lx2v * ly2v - (lxyv * lxyv)) / ((lx2v + ly2v) * (lx2v + ly2v) + 0.001);
+		} else if(cimV == 3) {
+			cim = (lx2v * ly2v - (lxyv * lxyv* lxyv* lxyv)) - ((lx2v + ly2v) * (lx2v + ly2v) * k);
+		}
 
 		if (cim.r > threshold || cim.g > threshold || cim.b > threshold) {
 			color = pointColor;

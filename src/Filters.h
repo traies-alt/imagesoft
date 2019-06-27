@@ -728,6 +728,8 @@ struct HarrisFilter: IFilter {
 	float _prewitMaskDivision = 1.0f;
 	float _gaussMaskDivision;
 	float _threshold = 0.001f;
+	float _cimV = 1;
+	float _k = 0.04f;
     float _color[3] = {1.0f, 1.0f, 0};
 
 	HarrisFilter(int w, int h) {
