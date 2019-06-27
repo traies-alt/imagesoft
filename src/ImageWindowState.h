@@ -23,7 +23,7 @@ struct ImageWindowState {
 	std::string outputPath;
 	std::vector<IFilter*> filters;
 	int histogramBand = 0;
-	bool _calcHistogram = true;
+	bool _calcHistogram = false;
 	float _hist[256] = {0};
 	int _maxVal = 255;
 	int _histStart = 0, _histEnd = 256;

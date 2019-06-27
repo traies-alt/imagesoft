@@ -19,6 +19,10 @@
 #include "ShaderLayer.h"
 #include "Filters.h"
 
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/xfeatures2d/nonfree.hpp>
+
 using namespace std;
 
 static void glfw_error_callback(int error, const char* description)
@@ -26,7 +30,28 @@ static void glfw_error_callback(int error, const char* description)
     fprintf(stderr, "Glfw Error %d: %s\n", error, description);
 }
 
-int main(int, char**)
+
+struct SiftState {
+	fs::path path1, path2;
+	std::string p1, p2;
+	bool b1 = false, b2 = false, pending_update = false, pending_filter = false, pending_draw = false;
+	GLuint texture = 0;
+	bool texture_present = false;
+	ImVec2 size = ImVec2(0, 0);
+	float zoom = 1;
+	std::vector< std::vector<cv::DMatch> > matches, filtered;
+	cv::Mat img1, img2;
+	std::vector<cv::KeyPoint> keypoints1, keypoints2;
+	float threshold = 0.75;
+	bool drawUnmatch = false;
+	int k = 2;
+	float edgeThreshold = 10, contrastThreshold = 0.03, sigma = 1.6f;
+	int octaveLayers = 2;
+};
+
+
+
+int real_main(int, char**)
 {
 	// Setup window
 	glfwSetErrorCallback(glfw_error_callback);
@@ -138,9 +163,10 @@ int main(int, char**)
 	string path = fs::current_path().string();
 	char saveFileName[50] = {0};
 	static bool no_close = false;
+	bool sift = false;
 
+	SiftState siftState;
 	InitVertexBuffer();
-
 	// Main loop
 	while (!glfwWindowShouldClose(window))
 	{
@@ -159,6 +185,115 @@ int main(int, char**)
 			ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 			ImGui::End();
 		}
+
+		if (sift) {
+			ImGui::Begin("Sift Window");
+			if (ImGui::Button("First Image")) {
+					ImGui::OpenPopup("FirstImage");
+			}
+			ImGui::SameLine();
+			ImGui::Text(siftState.path1.filename().string().c_str());
+			if (ImGui::Button("Second Image")) {
+					ImGui::OpenPopup("SecondImage");
+			}
+			ImGui::SameLine();
+			ImGui::Text(siftState.path2.filename().string().c_str());
+			if (ImGui::BeginPopup("FirstImage")) {
+					if (SimpleFileNavigation(siftState.p1, siftState.path1, false)) {
+							ImGui::CloseCurrentPopup();
+							siftState.b1 = true;
+							siftState.pending_update = true;
+					}
+					ImGui::EndPopup();
+			}
+			
+			if (ImGui::BeginPopup("SecondImage")) {
+					if (SimpleFileNavigation(siftState.p2, siftState.path2, false)) {
+							ImGui::CloseCurrentPopup();
+							siftState.b2 = true;
+							siftState.pending_update = true;
+					}
+					ImGui::EndPopup();
+			}
+
+			if (siftState.texture == 0) {
+				glGenTextures(1, &siftState.texture);
+				glBindTexture(GL_TEXTURE_2D, siftState.texture);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+			}
+
+			if (siftState.texture_present) {
+				ImGui::SliderFloat("Zoom", &siftState.zoom, 0, 2, "%.2f");
+				glBindTexture(GL_TEXTURE_2D, siftState.texture);
+				ImGui::Image(reinterpret_cast<ImTextureID>(siftState.texture), ImVec2(siftState.size.x * siftState.zoom, siftState.size.y * siftState.zoom));
+			}
+
+			if (ImGui::SliderFloat("Threshold", &siftState.threshold, 0, 1)) {
+				siftState.pending_filter = true;
+			}
+			if (ImGui::Checkbox("Draw not matched", &siftState.drawUnmatch)) {
+				siftState.pending_draw = true;
+			}
+			if (ImGui::InputInt("K", &siftState.k)) {
+				siftState.pending_update = true;
+			}
+			if (ImGui::InputFloat("Contrast Threshold", &siftState.contrastThreshold, 0.001, 0.01, 3)) {
+				siftState.pending_update = true;
+			}
+			if (ImGui::InputFloat("Edge Threshold", &siftState.edgeThreshold, 0.1, 1, 1)) {
+				siftState.pending_update = true;
+			}
+			if (ImGui::InputFloat("Sigma", &siftState.sigma, 0.01, 0.1, 2)) {
+				siftState.pending_update = true;
+			}
+			if (ImGui::InputInt("Octave Layers", &siftState.octaveLayers)) {
+				siftState.pending_update = true;
+			}
+			if (siftState.b1 && siftState.b2) {
+				if (siftState.pending_update && siftState.b1 && siftState.b2) {
+					siftState.img1 = cv::imread(siftState.path1.string().c_str(), cv::IMREAD_GRAYSCALE);
+					siftState.img2 = cv::imread(siftState.path2.string().c_str(), cv::IMREAD_GRAYSCALE);
+					auto detector = cv::xfeatures2d::SiftFeatureDetector::create(0, siftState.octaveLayers, siftState.contrastThreshold, siftState.edgeThreshold, siftState.sigma);
+					cv::Mat descriptors1, descriptors2;
+					detector->detectAndCompute(siftState.img1, cv::noArray(), siftState.keypoints1, descriptors1);
+					detector->detectAndCompute(siftState.img2, cv::noArray(), siftState.keypoints2, descriptors2);
+					auto matcher = cv::BFMatcher::create();
+					matcher->knnMatch(descriptors1, descriptors2, siftState.matches, siftState.k);
+					siftState.pending_update = false;
+					siftState.pending_filter = true;
+				}
+				if (siftState.pending_filter) {
+					siftState.filtered.clear();
+					for(const auto& m: siftState.matches) {
+						if (m[0].distance < siftState.threshold * m[1].distance) {
+							siftState.filtered.push_back(m);
+						}
+					}
+					siftState.pending_filter = false;
+					siftState.pending_draw = true;
+				}
+				if (siftState.pending_draw){
+					// Add results to image and save.
+					cv::Mat output;
+					if (siftState.drawUnmatch) {
+						cv::drawMatches(siftState.img1, siftState.keypoints1, siftState.img2, siftState.keypoints2, siftState.filtered, output);
+					} else {
+						cv::drawMatches(siftState.img1, siftState.keypoints1, siftState.img2, siftState.keypoints2, siftState.filtered, output, cv::Scalar::all(-1), cv::Scalar::all(-1), std::vector<std::vector<char>>(), cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+					}
+					glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+					glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, output.cols, output.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, output.ptr());
+					// cv::imshow("Matches", output);
+					siftState.texture_present = true;
+					siftState.size =  ImVec2(output.size[1], output.size[0]);
+					siftState.pending_draw = false;
+				}
+			}
+			ImGui::End();
+		}
+
 		if (showFileSelectError) {
 			ImGui::OpenPopup("Image Select Error");
 			if (ImGui::BeginPopupModal("Image Select Error", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
@@ -352,6 +487,11 @@ int main(int, char**)
 				}
 				ImGui::EndMenu();
 			}
+			if (ImGui::BeginMenu("SIFT"))
+			{   
+					sift = true;
+					ImGui::EndMenu();
+			}   
 			ImGui::EndMainMenuBar();
 		}
 
@@ -519,3 +659,28 @@ int main(int, char**)
 
 	return 0;
 }
+
+
+int main(int argc, char * argv[])
+{
+	try {
+		real_main(argc, argv);
+	}
+	catch (std::exception &e) {
+		cout << e.what() << endl;
+	}
+}
+
+// void Sift()
+// {
+//     const cv::Mat input = cv::imread("./images/lenna.bmp", 0); //Load as grayscale
+
+//     cv::Ptr<cv::xfeatures2d::SiftFeatureDetector> detector = cv::xfeatures2d::SiftFeatureDetector::create();
+//     std::vector<cv::KeyPoint> keypoints;
+//     detector->detect(input, keypoints);
+//     // Add results to image and save.
+//     cv::Mat output;
+//     cv::drawKeypoints(input, keypoints, output, -1, cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+//     cv::imwrite("sift_result.jpg", output);
+//     return 0;
+// }
