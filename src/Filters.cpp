@@ -9,6 +9,7 @@
 #include "KnownMask.h"
 #include <queue>          // std::queue
 #include <tuple>
+#include <map>
 
 static GLuint vertexbuffer;
 static GLuint uvbuffer;
@@ -2115,34 +2116,6 @@ void ActiveBorder::RenderUI() {
     ImGui::SliderFloat("Resize Square Radius", &_resizeSquareRadius, 0, min(_width, _height) / 2);
 }
 
-void bucketPaintTag(float* levelValueTexture, int* levelValueTags, int x, int y, int width, int height, int tag) {
-    std::queue<std::tuple<int,int>> q;
-    q.push(std::make_tuple(x,y));
-
-    while (!q.empty()) {
-        auto [x, y] = q.front();
-        q.pop();
-        int pos = y * width + x;
-        if (levelValueTags[pos] > 0 || levelValueTexture[pos] != 0) {
-            continue;
-        }
-        levelValueTags[pos] = tag;
-
-        for (int i = max(0, x - 1); i <= min(width-1, x+1); i++) {
-            for (int j = max(0, y - 1); j <= min(height-1, y+1); j++) {
-                if ((i == x && j == y) || (i != x && j != y)) {
-                    continue;
-                }
-				int newpos = j * width + i;
-				if (levelValueTags[newpos] > 0 || levelValueTexture[newpos] != 0) {
-					continue;
-				}
-                q.push(std::make_tuple(i,j));
-            }
-        }
-    }
-}
-
 float centerDistance(float center[2], float other[2]) {
     return (center[0] - other[0]) * (center[0] - other[0]) + (center[1] - other[1]) * (center[1] - other[1]);
 }
@@ -2208,6 +2181,9 @@ void ActiveBorder::ApplyFilter(GLuint prevTexture) {
     }
 
     int tag = 1;
+
+    std::map<int,int> equivalence;
+
     for (int x = 0; x < _width; ++x) {
         for (int y = 0; y < _height; ++y) {
             long pos = (y * _width + x);
@@ -2216,14 +2192,89 @@ void ActiveBorder::ApplyFilter(GLuint prevTexture) {
                 center[1] = center[1] + y;
                 insideCounter++;
                 // Paint adjacent
-                if (levelValuesTags[pos] == 0) {
-                    bucketPaintTag(_levelValues, levelValuesTags, x, y, _width, _height, tag);
-                    tag++;
-                }
+						}
+						if (_levelValues[pos] != 1) {
+							if (levelValuesTags[pos] == 0) {
+								if(x==0) {
+										if(y==0) {
+												levelValuesTags[pos] = tag;
+												tag++;
+										} else {
+												int prevT = levelValuesTags[pos - _width];
+												if(prevT == 0) {
+														levelValuesTags[pos] = tag;
+														tag++;
+												} else {
+														levelValuesTags[pos] = prevT;
+												}
+										}
+								} else {
+										if(y==0) {
+												int prevT = levelValuesTags[pos - 1];
+												if(prevT == 0) {
+														levelValuesTags[pos] = tag;
+														tag++;
+												} else {
+														levelValuesTags[pos] = prevT;
+												}
+										} else {
+												int prevTY = levelValuesTags[pos - _width];
+												int prevTX = levelValuesTags[pos - 1];
+												if(prevTY == 0) {
+														if(prevTX == 0) {
+																tag++;
+																levelValuesTags[pos] = tag;
+														} else {
+																levelValuesTags[pos] = prevTX;
+														}
+												} else {
+														if(prevTX == 0) {
+																levelValuesTags[pos] = prevTY;
+														} else {
+																auto newTag = min(equivalence[prevTX],  equivalence[prevTY]);
+																// if(equivalence.count(prevTX)){
+																// 		newTag = min(newTag, equivalence[prevTX]);
+																// }
+																// if(equivalence.count(prevTY)){
+																// 		newTag = min(newTag, equivalence[prevTY]);
+																// }
+
+																levelValuesTags[pos] = newTag;
+																equivalence[prevTX] = newTag;
+																equivalence[prevTY] = newTag;
+														}
+												}
+										}
+								}
+
+								if(!equivalence.count(levelValuesTags[pos])){
+										equivalence[levelValuesTags[pos]] = levelValuesTags[pos];
+								}
+							}
+						}
+        }
+    }
+
+    for (int x = 0; x < _width; ++x) {
+        for (int y = 0; y < _height; ++y) {
+            long pos = (y * _width + x);
+            if(levelValuesTags[pos] > 0) {
+                int tempTag = levelValuesTags[pos];
+                levelValuesTags[pos] = equivalence[tempTag];
             }
         }
     }
 
+    std::map<int, int>::iterator it = equivalence.begin();
+    while (it != equivalence.end()) {
+        if(it ->first != it->second) {
+            std::map<int, int>::iterator toErase = it;
+            ++it;
+            equivalence.erase(toErase);
+        } else {
+            ++it;
+        }
+    }
     if(insideCounter > 0) {
         center[0] = center[0] / insideCounter;
         center[1] = center[1] / insideCounter;
@@ -2235,7 +2286,8 @@ void ActiveBorder::ApplyFilter(GLuint prevTexture) {
         center[0] = INFINITY;
         center[1] = INFINITY;
         int realTag;
-        for (int t = 1; t < tag; t++) {
+        for (auto it=equivalence.begin(); it!=equivalence.end(); ++it) {
+            int t = it->first;
             float tCenter[2] = {0, 0};
             int tInsideCounter = 0;
             for (int x = 0; x < _width; ++x) {
@@ -2264,7 +2316,7 @@ void ActiveBorder::ApplyFilter(GLuint prevTexture) {
         for (int x = 0; x < _width; ++x) {
             for (int y = 0; y < _height; ++y) {
                 long pos = (y * _width + x);
-                if (_levelValues[pos] == 0 && levelValuesTags[pos] != realTag) {
+                if (levelValuesTags[pos] != realTag) {
                     _levelValues[pos] = 1;
                 }
             }

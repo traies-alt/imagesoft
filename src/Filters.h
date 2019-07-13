@@ -155,7 +155,7 @@ struct DynamicRangeCompressionFilter: IFilter {
 	GLuint _glC;
 	unsigned char _minr, _ming, _minb, _maxr, _maxg, _maxb;
 
-	bool _calcToggle = true;
+	bool _calcToggle = false;
 	DynamicRangeCompressionFilter(int w, int h) {
 		_width = w;
 		_height = h;
