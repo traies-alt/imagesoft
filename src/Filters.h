@@ -669,14 +669,23 @@ struct ActiveBorder: IFilter {
 	float* _levelValues;
 
 	int _iterations = 0;
-	bool _modified = false;
 	bool _showSquare = true;
 
 	float _precision = 0.5f;
 
-	int _xs[2] = {0, 0};
-	int _ys[2] = {0, 0};
+	int _xs[2] = {255, 313};
+	int _ys[2] = {137, 165};
+
+	int _kSize = 30;
+	int* _kc;
+	int _kcI = 0;
+	int _kcF = 0;
+	float _umbral = 0.3f;
+
+	float _lastCenter[2] = {0,0};
+
 	float _medianColorValue[3] = {0,0,0};
+	float _resizeSquareRadius = 100;
 
 	ActiveBorder(int w, int h) {
 		_width = w;
@@ -684,11 +693,12 @@ struct ActiveBorder: IFilter {
 		_name = "Active Border Filter";
 
 		_levelValues = new float[_width * _height]();
+        _kc = new int[_kSize]();
 	}
 
 	void InitShader() override;
 	void SetupShader();
-	void ApplySquare(GLuint prevTexture);
+	void ApplySquare(GLuint prevTexture, int xmin, int xmax, int ymin, int ymax, bool recalculateColor);
 	void RenderUI() override;
 	void ApplyFilter(GLuint prevTexture) override;
 };

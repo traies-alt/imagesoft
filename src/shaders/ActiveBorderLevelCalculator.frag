@@ -14,6 +14,8 @@ uniform float height;
 uniform float prec;
 uniform vec3 omega;
 uniform bool shouldMove;
+uniform bool cleaning;
+
 
 bool is_lout_compressing(float x, float y);
 bool is_lout_expanding(float x, float y);
@@ -179,6 +181,31 @@ void main() {
 
 	color = vec3(value, 0, 0);
 
+	if(cleaning) {
+		if (x>= width || x<=0 || y>=height || y<=0) {
+			color = vec3(value, 0, 0);
+		} else if (abs(value - outside) < 0.01) {
+		 //
+		} else if (abs(value - inside) < 0.01) {
+			//
+		} else if (abs(value - lout) < 0.01) {
+			if(!is_near(x,y, outside)) {
+				if(is_near(x,y,inside)) {
+					color = vec3(inside, 0, 0);
+				} else {
+					color = vec3(outside, 0, 0);
+				}
+			}
+		} else if (abs(value - lin) < 0.01) {
+      if(!is_near(x,y, inside)) {
+				if(is_near(x,y,outside)) {
+					color = vec3(outside, 0, 0);
+				} else {
+					color = vec3(inside, 0, 0);
+				}
+			}
+		}
+	} else {
 	if(shouldMove) {
 		if (x>= width || x<=0 || y>=height || y<=0) {
 			color = vec3(value, 0, 0);
@@ -205,5 +232,6 @@ void main() {
 				color = vec3(inside, 0, 0);					//IF has an lout turning into lin, this is inside
 			}
 		}
+	}
 	}
 }

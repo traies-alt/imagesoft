@@ -16,6 +16,7 @@ static int imageID = 0;
 
 optional<ImageWindowState> LoadImageFile(const char * filepath)
 {
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	GLuint tex_2d = SOIL_load_OGL_texture(
 		filepath,
 		SOIL_LOAD_AUTO,
@@ -33,27 +34,27 @@ optional<ImageWindowState> LoadImageFile(const char * filepath)
     glGetTexLevelParameteriv(GL_TEXTURE_2D, miplevel, GL_TEXTURE_WIDTH, &w);
     glGetTexLevelParameteriv(GL_TEXTURE_2D, miplevel, GL_TEXTURE_HEIGHT, &h);
 
-		unsigned char * pixels = new unsigned char[w * h * 3];
-		glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
-		glBindTexture(GL_TEXTURE_2D, 0);
-		auto v = vector<IFilter*>();
-		IFilter * fil = new MainFilter(w, h);
-		fil->InitShader();
-		v.push_back(fil);
+    unsigned char * pixels = new unsigned char[w * h * 3];
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    auto v = vector<IFilter*>();
+    IFilter * fil = new MainFilter(w, h);
+    fil->InitShader();
+    v.push_back(fil);
 
-		ImageWindowState im = {
-			tex_2d,
-			w,
-			h,
-			1.0f,
-			string(filepath).c_str(),
-			imageID++,
-			pixels,
-			GL_RGB,
-			fs::current_path().string(),
-			v
-		};
-		return make_optional(im);
+    ImageWindowState im = {
+        tex_2d,
+        w,
+        h,
+        1.0f,
+        string(filepath).c_str(),
+        imageID++,
+        pixels,
+        GL_RGB,
+        fs::current_path().string(),
+        v
+    };
+    return make_optional(im);
 	}
 }
 
@@ -155,7 +156,7 @@ optional<ImageWindowState> LoadImageFileRaw(const char * filepath, int width, in
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, flipBuffer);
 	glBindTexture(GL_TEXTURE_2D, 0);
 
@@ -202,7 +203,7 @@ bool ReloadImage(ImageWindowState * image) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image->width, image->height, 0, image->colorFormat, GL_UNSIGNED_BYTE, image->data());
 	glBindTexture(GL_TEXTURE_2D, 0);
 
@@ -219,6 +220,7 @@ optional<ImageWindowState> CreateImage(unsigned char * pixels, int w, int h)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
 	glBindTexture(GL_TEXTURE_2D, 0);
 

@@ -7,6 +7,8 @@
 #include "ShaderLayer.h"
 #include <math.h>
 #include "KnownMask.h"
+#include <queue>          // std::queue
+#include <tuple>
 
 static GLuint vertexbuffer;
 static GLuint uvbuffer;
@@ -2019,11 +2021,7 @@ void ActiveBorder::SetupShader() {
 	glUniform1f(glGetUniformLocation(_levelValueProgramId, "width"), _width);
 }
 
-void ActiveBorder::ApplySquare(GLuint prevTexture) {
-	int xmin = min(_xs[0],_xs[1]);
-	int xmax = max(_xs[0],_xs[1]);
-	int ymin = min(_ys[0],_ys[1]);
-	int ymax = max(_ys[0],_ys[1]);
+void ActiveBorder::ApplySquare(GLuint prevTexture, int xmin, int xmax, int ymin, int ymax, bool recalculateColor) {
 
 	float inside = 0;
 	float lin =  0.3;
@@ -2061,35 +2059,40 @@ void ActiveBorder::ApplySquare(GLuint prevTexture) {
 		}
 	}
 
-    int counter = 0;
-    float acumulator[3] = {0, 0, 0};
-    auto prev_pixes = (unsigned char *) malloc((size_t)3 * _width * _height);
+    if(recalculateColor) {
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, prevTexture);
-    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, prev_pixes);
+        int counter = 0;
+        float acumulator[3] = {0, 0, 0};
+        auto prev_pixes = (unsigned char *) malloc((size_t)3 * _width * _height);
 
-    for (int x = 0; x < _width; ++x) {
-        for (int y = 0; y < _height; ++y) {
-            if (_levelValues[y * _width + x] == 0) {
-                long pos = 3 * (y * _width + x);
-                for (int i = 0; i < 3; i++) {
-                    acumulator[i] += prev_pixes[pos + i];
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, prevTexture);
+        glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_UNSIGNED_BYTE, prev_pixes);
+
+        for (int x = 0; x < _width; ++x) {
+            for (int y = 0; y < _height; ++y) {
+                if (_levelValues[y * _width + x] == 0) {
+                    long pos = 3 * (y * _width + x);
+                    for (int i = 0; i < 3; i++) {
+                        acumulator[i] += prev_pixes[pos + i];
+                    }
+
+                    counter++;
                 }
-
-                counter++;
             }
         }
+
+        free(prev_pixes);
+
+
+        for (int i = 0; i < 3; i++) {
+            _medianColorValue[i] = acumulator[i] / float(counter) / 255.0f;
+        }
+
+        glUniform3f(glGetUniformLocation(_levelValueProgramId, "omega"),
+                    _medianColorValue[0], _medianColorValue[1], _medianColorValue[2]);
     }
-
-    free(prev_pixes);
-
-    for (int i = 0; i < 3; i++) {
-        _medianColorValue[i] = acumulator[i] / float(counter) / 255.0f;
-    }
-
-    glUniform3f(glGetUniformLocation(_levelValueProgramId, "omega"),
-                _medianColorValue[0], _medianColorValue[1], _medianColorValue[2]);
 
     _maskWeightsTexture = WeightedTexture2D(_width, _height, _levelValues, _maskWeightsTexture);
 }
@@ -2097,9 +2100,8 @@ void ActiveBorder::ApplySquare(GLuint prevTexture) {
 void ActiveBorder::RenderUI() {
 
     ImGui::Text("Initial Square");
-    _modified = false;
-    _modified |= ImGui::SliderInt2("X", _xs, 0, _width);
-    _modified |= ImGui::SliderInt2("Y", _ys, 0, _height);
+    ImGui::SliderInt2("X", _xs, 0, _width);
+    ImGui::SliderInt2("Y", _ys, 0, _height);
 
     ImGui::Checkbox("stop Calculation", &_showSquare);
 
@@ -2107,47 +2109,230 @@ void ActiveBorder::RenderUI() {
 
     ImGui::SliderInt("Iterations", &_iterations, 0, _width);
     ImGui::SliderFloat("Precision", &_precision, 0, 1);
+
+    ImGui::SliderFloat("Umbral", &_umbral, 0, 1);
+
+    ImGui::SliderFloat("Resize Square Radius", &_resizeSquareRadius, 0, min(_width, _height) / 2);
 }
+
+void bucketPaintTag(float* levelValueTexture, int* levelValueTags, int x, int y, int width, int height, int tag) {
+    std::queue<std::tuple<int,int>> q;
+    q.push(std::make_tuple(x,y));
+
+    while (!q.empty()) {
+        auto [x, y] = q.front();
+        q.pop();
+        int pos = y * width + x;
+        if (levelValueTags[pos] > 0 || levelValueTexture[pos] != 0) {
+            continue;
+        }
+        levelValueTags[pos] = tag;
+
+        for (int i = max(0, x - 1); i <= min(width-1, x+1); i++) {
+            for (int j = max(0, y - 1); j <= min(height-1, y+1); j++) {
+                if ((i == x && j == y) || (i != x && j != y)) {
+                    continue;
+                }
+				int newpos = j * width + i;
+				if (levelValueTags[newpos] > 0 || levelValueTexture[newpos] != 0) {
+					continue;
+				}
+                q.push(std::make_tuple(i,j));
+            }
+        }
+    }
+}
+
+float centerDistance(float center[2], float other[2]) {
+    return (center[0] - other[0]) * (center[0] - other[0]) + (center[1] - other[1]) * (center[1] - other[1]);
+}
+
 
 void ActiveBorder::ApplyFilter(GLuint prevTexture) {
     static bool isFirst = false;
 
+    SetupShader();
+    if (_showSquare) {
+        int xmin = min(_xs[0], _xs[1]);
+        int xmax = max(_xs[0], _xs[1]);
+        int ymin = min(_ys[0], _ys[1]);
+        int ymax = max(_ys[0], _ys[1]);
+        ApplySquare(prevTexture, xmin, xmax, ymin, ymax, true);
+        isFirst = true;
+    }
+
+    int iterations = _iterations;
+    GLuint levelValueSampleLocationCalculator = glGetUniformLocation(_levelValueProgramId, "levelValueSampler");
+    GLuint textSampleLocationCalculator = glGetUniformLocation(_levelValueProgramId, "myTextureSampler");
+    glUniform1f(glGetUniformLocation(_levelValueProgramId, "prec"), _precision);
+
+    if (isFirst) {
+        glUniform1i(glGetUniformLocation(_levelValueProgramId, "shouldMove"), false);
+        glUniform1i(glGetUniformLocation(_levelValueProgramId, "cleaning"), false);
+        glBindFramebuffer(GL_FRAMEBUFFER, _levelValueFrameBuffer);
+        glUseProgram(_levelValueProgramId);
+        ApplyTexture(_levelValueProgramId, _maskWeightsTexture, levelValueSampleLocationCalculator);
+        DrawTexturedTriangles(prevTexture, textSampleLocationCalculator);
+        iterations = _iterations;
+    }
+
     isFirst = false;
 
-	SetupShader();
-	if(_showSquare) {
-		ApplySquare(prevTexture);
-		isFirst = true;
-	}
-
-
-	int iterations = _iterations;
-	GLuint levelValueSampleLocationCalculator = glGetUniformLocation(_levelValueProgramId, "levelValueSampler");
-	GLuint textSampleLocationCalculator = glGetUniformLocation(_levelValueProgramId, "myTextureSampler");
-    glUniform1f(glGetUniformLocation(_levelValueProgramId, "prec"),_precision);
-
-    if(isFirst) {
-		glUniform1i(glGetUniformLocation(_levelValueProgramId, "shouldMove"), false);
-
+    for (int i = 1; i < iterations && !_showSquare; ++i) {
+        glUniform1i(glGetUniformLocation(_levelValueProgramId, "shouldMove"), true);
+        glUniform1i(glGetUniformLocation(_levelValueProgramId, "cleaning"), false);
         glBindFramebuffer(GL_FRAMEBUFFER, _levelValueFrameBuffer);
-		glUseProgram(_levelValueProgramId);
-		ApplyTexture(_levelValueProgramId, _maskWeightsTexture, levelValueSampleLocationCalculator);
-		DrawTexturedTriangles(prevTexture, textSampleLocationCalculator);
-		iterations = _iterations;
-	}
+        glUseProgram(_levelValueProgramId);
+        ApplyTexture(_levelValueProgramId, _levelValueTexture, levelValueSampleLocationCalculator);
+        DrawTexturedTriangles(prevTexture, textSampleLocationCalculator);
 
-
-	for (int i = 1; i < iterations && !_showSquare; ++i) {
-		glUniform1i(glGetUniformLocation(_levelValueProgramId, "shouldMove"), 1);
+		glUniform1i(glGetUniformLocation(_levelValueProgramId, "shouldMove"), true);
+		glUniform1i(glGetUniformLocation(_levelValueProgramId, "cleaning"), true);
 		glBindFramebuffer(GL_FRAMEBUFFER, _levelValueFrameBuffer);
 		glUseProgram(_levelValueProgramId);
 		ApplyTexture(_levelValueProgramId, _levelValueTexture, levelValueSampleLocationCalculator);
 		DrawTexturedTriangles(prevTexture, textSampleLocationCalculator);
-	}
+    }
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, _levelValueTexture);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RED, GL_FLOAT, _levelValues);
+
+    int insideCounter = 0;
+    float inside = 0;
+    float center[] = {0, 0};
+
+    int * levelValuesTags = new int[_width * _height];
+    for (int i = 0; i < _width * _height; i++) {
+        levelValuesTags[i] = 0;
+    }
+
+    int tag = 1;
+    for (int x = 0; x < _width; ++x) {
+        for (int y = 0; y < _height; ++y) {
+            long pos = (y * _width + x);
+            if (_levelValues[pos] == inside) {
+                center[0] = center[0] + x;
+                center[1] = center[1] + y;
+                insideCounter++;
+                // Paint adjacent
+                if (levelValuesTags[pos] == 0) {
+                    bucketPaintTag(_levelValues, levelValuesTags, x, y, _width, _height, tag);
+                    tag++;
+                }
+            }
+        }
+    }
+
+    if(insideCounter > 0) {
+        center[0] = center[0] / insideCounter;
+        center[1] = center[1] / insideCounter;
+    }
+
+
+    int ts = 0;
+    if (tag > 2) {
+        center[0] = INFINITY;
+        center[1] = INFINITY;
+        int realTag;
+        for (int t = 1; t < tag; t++) {
+            float tCenter[2] = {0, 0};
+            int tInsideCounter = 0;
+            for (int x = 0; x < _width; ++x) {
+                for (int y = 0; y < _height; ++y) {
+                    long pos = (y * _width + x);
+                    if (levelValuesTags[pos] == t) {
+                        tCenter[0] = tCenter[0] + x;
+                        tCenter[1] = tCenter[1] + y;
+                        tInsideCounter++;
+                    }
+                }
+            }
+            if (tInsideCounter > 100) {
+                tCenter[0] /= tInsideCounter;
+                tCenter[1] /= tInsideCounter;
+                if (centerDistance(_lastCenter, center) > centerDistance(_lastCenter, tCenter)) {
+                    center[0] = tCenter[0];
+                    center[1] = tCenter[1];
+                    realTag = t;
+                }
+                ts++;
+            }
+        }
+
+        printf("real Tag out of%d\n", realTag, ts);
+        for (int x = 0; x < _width; ++x) {
+            for (int y = 0; y < _height; ++y) {
+                long pos = (y * _width + x);
+                if (_levelValues[pos] == 0 && levelValuesTags[pos] != realTag) {
+                    _levelValues[pos] = 1;
+                }
+            }
+        }
+
+        _maskWeightsTexture = WeightedTexture2D(_width, _height, _levelValues, _maskWeightsTexture);
+
+        glUniform1i(glGetUniformLocation(_levelValueProgramId, "shouldMove"), false);
+        glUniform1i(glGetUniformLocation(_levelValueProgramId, "cleaning"), true);
+        glBindFramebuffer(GL_FRAMEBUFFER, _levelValueFrameBuffer);
+        glUseProgram(_levelValueProgramId);
+        ApplyTexture(_levelValueProgramId, _maskWeightsTexture, levelValueSampleLocationCalculator);
+        DrawTexturedTriangles(prevTexture, textSampleLocationCalculator);
+    }
+
+    delete[] levelValuesTags;
+
+    int kAmounts = _kcF;
+    _kcF = (_kcF + 1) % _kSize;
+
+    if (_kcF <= _kcI) {
+        _kcI = (_kcF + 1) % _kSize;
+        kAmounts = _kSize - 1;
+    }
+
+    _kc[_kcF] = insideCounter;
+
+    if (kAmounts > 0) {
+        float _kMedia = 0;
+        for (int j = _kcI; j != _kcF; j = (j + 1) % _kSize) {
+            _kMedia += _kc[j];
+        }
+
+
+        _kMedia = _kMedia / kAmounts;
+        if (_kc[_kcF] < _kMedia * _umbral) {
+            printf("IsOccluding\n");
+            printf("center %f %f\n", center[0], center[1]);
+            int xmin = center[0] - _resizeSquareRadius;
+            int xmax = center[0] + _resizeSquareRadius;
+            int ymin = center[1] - _resizeSquareRadius;
+            int ymax = center[1] + _resizeSquareRadius;
+            ApplySquare(prevTexture, xmin, xmax, ymin, ymax, false);
+            isFirst = true;
+            delete[]_kc;
+            _kc = new int[_kSize]();
+            _kcI = 0;
+            _kcF = 0;
+        }
+    }
+
+
+    _lastCenter[0] = center[0];
+    _lastCenter[1] = center[1];
+
+    glUseProgram(_programID);
+    glUniform2f(glGetUniformLocation(_programID, "center"), center[0], center[1]);
+
+
+
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
-	 ApplyTexture(_programID, _levelValueTexture,
+    glUseProgram(_programID);
+    glUniform1f(glGetUniformLocation(_programID, "height"), _height);
+    glUniform1f(glGetUniformLocation(_programID, "width"), _width);
+
+    ApplyTexture(_programID, _levelValueTexture,
 	 		glGetUniformLocation(_programID, "levelValueSampler"));
 	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
 	glUseProgram(_programID);
