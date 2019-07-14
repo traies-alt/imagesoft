@@ -2120,6 +2120,19 @@ float centerDistance(float center[2], float other[2]) {
     return (center[0] - other[0]) * (center[0] - other[0]) + (center[1] - other[1]) * (center[1] - other[1]);
 }
 
+void ActiveBorder::RunAndClean(GLuint prevTexture, GLuint levelValueSampleLocationCalculator, GLuint textSampleLocationCalculator, bool isFirst, bool shouldMove, bool clean) {
+	glUniform1i(glGetUniformLocation(_levelValueProgramId, "shouldMove"), shouldMove);
+	glUniform1i(glGetUniformLocation(_levelValueProgramId, "cleaning"), clean);
+	glBindFramebuffer(GL_FRAMEBUFFER, _levelValueFrameBuffer);
+	glUseProgram(_levelValueProgramId);
+	if (isFirst) {
+		ApplyTexture(_levelValueProgramId, _maskWeightsTexture, levelValueSampleLocationCalculator);
+	}
+	else {
+		ApplyTexture(_levelValueProgramId, _levelValueTexture, levelValueSampleLocationCalculator);
+	}
+	DrawTexturedTriangles(prevTexture, textSampleLocationCalculator);
+}
 
 void ActiveBorder::ApplyFilter(GLuint prevTexture) {
     static bool isFirst = false;
@@ -2140,31 +2153,15 @@ void ActiveBorder::ApplyFilter(GLuint prevTexture) {
     glUniform1f(glGetUniformLocation(_levelValueProgramId, "prec"), _precision);
 
     if (isFirst) {
-        glUniform1i(glGetUniformLocation(_levelValueProgramId, "shouldMove"), false);
-        glUniform1i(glGetUniformLocation(_levelValueProgramId, "cleaning"), false);
-        glBindFramebuffer(GL_FRAMEBUFFER, _levelValueFrameBuffer);
-        glUseProgram(_levelValueProgramId);
-        ApplyTexture(_levelValueProgramId, _maskWeightsTexture, levelValueSampleLocationCalculator);
-        DrawTexturedTriangles(prevTexture, textSampleLocationCalculator);
+		RunAndClean(prevTexture, levelValueSampleLocationCalculator, textSampleLocationCalculator, true, false, false);
         iterations = _iterations;
     }
 
     isFirst = false;
 
     for (int i = 1; i < iterations && !_showSquare; ++i) {
-        glUniform1i(glGetUniformLocation(_levelValueProgramId, "shouldMove"), true);
-        glUniform1i(glGetUniformLocation(_levelValueProgramId, "cleaning"), false);
-        glBindFramebuffer(GL_FRAMEBUFFER, _levelValueFrameBuffer);
-        glUseProgram(_levelValueProgramId);
-        ApplyTexture(_levelValueProgramId, _levelValueTexture, levelValueSampleLocationCalculator);
-        DrawTexturedTriangles(prevTexture, textSampleLocationCalculator);
-
-		glUniform1i(glGetUniformLocation(_levelValueProgramId, "shouldMove"), true);
-		glUniform1i(glGetUniformLocation(_levelValueProgramId, "cleaning"), true);
-		glBindFramebuffer(GL_FRAMEBUFFER, _levelValueFrameBuffer);
-		glUseProgram(_levelValueProgramId);
-		ApplyTexture(_levelValueProgramId, _levelValueTexture, levelValueSampleLocationCalculator);
-		DrawTexturedTriangles(prevTexture, textSampleLocationCalculator);
+		RunAndClean(prevTexture, levelValueSampleLocationCalculator, textSampleLocationCalculator, false, true, false);
+		RunAndClean(prevTexture, levelValueSampleLocationCalculator, textSampleLocationCalculator, false, true, true);
     }
 
     glActiveTexture(GL_TEXTURE0);
@@ -2192,66 +2189,64 @@ void ActiveBorder::ApplyFilter(GLuint prevTexture) {
                 center[1] = center[1] + y;
                 insideCounter++;
                 // Paint adjacent
-						}
-						if (_levelValues[pos] != 1) {
-							if (levelValuesTags[pos] == 0) {
-								if(x==0) {
-										if(y==0) {
-												levelValuesTags[pos] = tag;
-												tag++;
-										} else {
-												int prevT = levelValuesTags[pos - _width];
-												if(prevT == 0) {
-														levelValuesTags[pos] = tag;
-														tag++;
-												} else {
-														levelValuesTags[pos] = prevT;
-												}
-										}
-								} else {
-										if(y==0) {
-												int prevT = levelValuesTags[pos - 1];
-												if(prevT == 0) {
-														levelValuesTags[pos] = tag;
-														tag++;
-												} else {
-														levelValuesTags[pos] = prevT;
-												}
-										} else {
-												int prevTY = levelValuesTags[pos - _width];
-												int prevTX = levelValuesTags[pos - 1];
-												if(prevTY == 0) {
-														if(prevTX == 0) {
-																tag++;
-																levelValuesTags[pos] = tag;
-														} else {
-																levelValuesTags[pos] = prevTX;
-														}
-												} else {
-														if(prevTX == 0) {
-																levelValuesTags[pos] = prevTY;
-														} else {
-																auto newTag = min(equivalence[prevTX],  equivalence[prevTY]);
-																// if(equivalence.count(prevTX)){
-																// 		newTag = min(newTag, equivalence[prevTX]);
-																// }
-																// if(equivalence.count(prevTY)){
-																// 		newTag = min(newTag, equivalence[prevTY]);
-																// }
-
-																levelValuesTags[pos] = newTag;
-																equivalence[prevTX] = newTag;
-																equivalence[prevTY] = newTag;
-														}
-												}
-										}
-								}
-
-								if(!equivalence.count(levelValuesTags[pos])){
-										equivalence[levelValuesTags[pos]] = levelValuesTags[pos];
-								}
+				if (levelValuesTags[pos] == 0) {
+					if(x==0) {
+							if(y==0) {
+									levelValuesTags[pos] = tag;
+									tag++;
+							} else {
+									int prevT = levelValuesTags[pos - _width];
+									if(prevT == 0) {
+											levelValuesTags[pos] = tag;
+											tag++;
+									} else {
+											levelValuesTags[pos] = prevT;
+									}
 							}
-						}
+					} else {
+							if(y==0) {
+									int prevT = levelValuesTags[pos - 1];
+									if(prevT == 0) {
+											levelValuesTags[pos] = tag;
+											tag++;
+									} else {
+											levelValuesTags[pos] = prevT;
+									}
+							} else {
+									int prevTY = levelValuesTags[pos - _width];
+									int prevTX = levelValuesTags[pos - 1];
+									if(prevTY == 0) {
+											if(prevTX == 0) {
+													tag++;
+													levelValuesTags[pos] = tag;
+											} else {
+													levelValuesTags[pos] = prevTX;
+											}
+									} else {
+											if(prevTX == 0) {
+													levelValuesTags[pos] = prevTY;
+											} else {
+													auto newTag = min(equivalence[prevTX],  equivalence[prevTY]);
+													// if(equivalence.count(prevTX)){
+													// 		newTag = min(newTag, equivalence[prevTX]);
+													// }
+													// if(equivalence.count(prevTY)){
+													// 		newTag = min(newTag, equivalence[prevTY]);
+													// }
+
+													levelValuesTags[pos] = newTag;
+													equivalence[prevTX] = newTag;
+													equivalence[prevTY] = newTag;
+											}
+									}
+							}
+					}
+
+					if(!equivalence.count(levelValuesTags[pos])){
+							equivalence[levelValuesTags[pos]] = levelValuesTags[pos];
+					}
+				}
+			}
         }
     }
 
@@ -2282,10 +2277,10 @@ void ActiveBorder::ApplyFilter(GLuint prevTexture) {
 
 
     int ts = 0;
+    int realTag = 0;
     if (tag > 2) {
         center[0] = INFINITY;
         center[1] = INFINITY;
-        int realTag;
         for (auto it=equivalence.begin(); it!=equivalence.end(); ++it) {
             int t = it->first;
             float tCenter[2] = {0, 0};
@@ -2316,7 +2311,7 @@ void ActiveBorder::ApplyFilter(GLuint prevTexture) {
         for (int x = 0; x < _width; ++x) {
             for (int y = 0; y < _height; ++y) {
                 long pos = (y * _width + x);
-                if (levelValuesTags[pos] != realTag) {
+                if (_levelValues[pos] == inside && levelValuesTags[pos] != realTag) {
                     _levelValues[pos] = 1;
                 }
             }
@@ -2324,12 +2319,7 @@ void ActiveBorder::ApplyFilter(GLuint prevTexture) {
 
         _maskWeightsTexture = WeightedTexture2D(_width, _height, _levelValues, _maskWeightsTexture);
 
-        glUniform1i(glGetUniformLocation(_levelValueProgramId, "shouldMove"), false);
-        glUniform1i(glGetUniformLocation(_levelValueProgramId, "cleaning"), true);
-        glBindFramebuffer(GL_FRAMEBUFFER, _levelValueFrameBuffer);
-        glUseProgram(_levelValueProgramId);
-        ApplyTexture(_levelValueProgramId, _maskWeightsTexture, levelValueSampleLocationCalculator);
-        DrawTexturedTriangles(prevTexture, textSampleLocationCalculator);
+		RunAndClean(prevTexture, levelValueSampleLocationCalculator, textSampleLocationCalculator, true, false, true);
     }
 
     delete[] levelValuesTags;
@@ -2385,11 +2375,10 @@ void ActiveBorder::ApplyFilter(GLuint prevTexture) {
     glUniform1f(glGetUniformLocation(_programID, "width"), _width);
 
     ApplyTexture(_programID, _levelValueTexture,
-	 		glGetUniformLocation(_programID, "levelValueSampler"));
+	glGetUniformLocation(_programID, "levelValueSampler"));
 	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
 	glUseProgram(_programID);
 	DrawTexturedTriangles(prevTexture, glGetUniformLocation(_programID, "myTextureSampler"));
-
 }
 
 void HarrisFilter::InitShader() {

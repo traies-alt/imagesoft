@@ -701,6 +701,7 @@ struct ActiveBorder: IFilter {
 	void ApplySquare(GLuint prevTexture, int xmin, int xmax, int ymin, int ymax, bool recalculateColor);
 	void RenderUI() override;
 	void ApplyFilter(GLuint prevTexture) override;
+	void ActiveBorder::RunAndClean(GLuint prevTexture, GLuint textSampleLocationCalculator, GLuint levelValueSampleLocationCalculator, bool isFirst, bool shouldMove, bool clean);
 };
 
 struct HarrisFilter: IFilter {
