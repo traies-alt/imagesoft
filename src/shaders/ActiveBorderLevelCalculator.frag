@@ -34,6 +34,29 @@ float Fd(vec3 pixel) {
 	return log(P_in(pixel) / P_out(pixel));
 }
 
+bool is_sorrounded(float x, float y, float value) {
+	vec2 pos1 = vec2((x + 1)/width, y/height);
+	vec2 pos2 = vec2((x - 1)/width, y/height);
+	vec2 pos3 = vec2(x/width, (y + 1)/height);
+	vec2 pos4 = vec2(x/width, (y - 1)/height);
+	vec2 pos5 = vec2((x + 1)/width, (y + 1)/height);
+	vec2 pos6 = vec2((x - 1)/width, (y - 1)/height);
+	vec2 pos7 = vec2((x - 1)/width, (y + 1)/height);
+	vec2 pos8 = vec2((x + 1)/width, (y - 1)/height);
+
+
+	bool existsN = true;
+	existsN = existsN && (abs(texture(levelValueSampler, pos1).r - value) < 0.01);
+	existsN = existsN && (abs(texture(levelValueSampler, pos2).r - value) < 0.01);
+	existsN = existsN && (abs(texture(levelValueSampler, pos3).r - value) < 0.01);
+	existsN = existsN && (abs(texture(levelValueSampler, pos4).r - value) < 0.01);
+	existsN = existsN && (abs(texture(levelValueSampler, pos5).r - value) < 0.01);
+	existsN = existsN && (abs(texture(levelValueSampler, pos6).r - value) < 0.01);
+	existsN = existsN && (abs(texture(levelValueSampler, pos7).r - value) < 0.01);
+	existsN = existsN && (abs(texture(levelValueSampler, pos8).r - value) < 0.01);
+
+	return existsN;
+}
 
 bool is_near(float x, float y, float value) {
 	vec2 pos1 = vec2((x + 1)/width, y/height);
@@ -44,6 +67,31 @@ bool is_near(float x, float y, float value) {
 	vec2 pos6 = vec2((x - 1)/width, (y - 1)/height);
 	vec2 pos7 = vec2((x - 1)/width, (y + 1)/height);
 	vec2 pos8 = vec2((x + 1)/width, (y - 1)/height);
+
+
+	bool existsN = false;
+	int count = 0;
+	existsN = existsN || (abs(texture(levelValueSampler, pos1).r - value) < 0.01);
+	existsN = existsN || (abs(texture(levelValueSampler, pos2).r - value) < 0.01);
+	existsN = existsN || (abs(texture(levelValueSampler, pos3).r - value) < 0.01);
+	existsN = existsN || (abs(texture(levelValueSampler, pos4).r - value) < 0.01);
+	existsN = existsN || (abs(texture(levelValueSampler, pos5).r - value) < 0.01);
+	existsN = existsN || (abs(texture(levelValueSampler, pos6).r - value) < 0.01);
+	existsN = existsN || (abs(texture(levelValueSampler, pos7).r - value) < 0.01);
+	existsN = existsN || (abs(texture(levelValueSampler, pos8).r - value) < 0.01);
+
+	return existsN;
+}
+
+bool is_near2(float x, float y, float value) {
+	vec2 pos1 = vec2((x + 2)/width, y/height);
+	vec2 pos2 = vec2((x - 2)/width, y/height);
+	vec2 pos3 = vec2(x/width, (y + 2)/height);
+	vec2 pos4 = vec2(x/width, (y - 2)/height);
+	vec2 pos5 = vec2((x + 2)/width, (y + 2)/height);
+	vec2 pos6 = vec2((x - 2)/width, (y - 2)/height);
+	vec2 pos7 = vec2((x - 2)/width, (y + 2)/height);
+	vec2 pos8 = vec2((x + 2)/width, (y - 2)/height);
 
 
 	bool existsN = false;
@@ -184,21 +232,35 @@ void main() {
 	if(cleaning) {
 		if (x>= width || x<=0 || y>=height || y<=0) {
 			color = vec3(value, 0, 0);
+		} else if(is_sorrounded(x,y,inside)) {
+			color = vec3(inside, 0, 0);
 		} else if (abs(value - outside) < 0.01) {
-		 //
-		} else if (abs(value - inside) < 0.01) {
-			//
-		} else if (abs(value - lout) < 0.01) {
-			if(!is_near(x,y, outside)) {
-				if(is_near(x,y,inside)) {
-					color = vec3(inside, 0, 0);
-				} else {
-					color = vec3(outside, 0, 0);
-				}
+			if (is_near(x, y, lin)) {
+				color = vec3(lout, 0, 0);
+			} else if(is_near(x,y, inside)) {
+				color = vec3(lin, 0, 0);
 			}
+		} else if (abs(value - inside) < 0.01) {
+//			if(!is_near(x,y, lin)) {
+//				color = vec3(outside, 0, 0);
+//			}
+		} else if (abs(value - lout) < 0.01) {
+			if(is_near(x,y, inside)) {
+			  		color = vec3(inside, 0, 0);
+			} else if(!is_near(x,y, lin)) {
+				color = vec3(outside, 0, 0);
+			}
+//			else if(!is_near(x,y, outside)) {
+//				if(is_near(x,y,inside)) {
+//					color = vec3(inside, 0, 0);
+//				} else {
+//					color = vec3(outside, 0, 0);
+//				}
+//			}
+
 		} else if (abs(value - lin) < 0.01) {
-      if(!is_near(x,y, inside)) {
-				if(is_near(x,y,outside)) {
+      		if(!is_near(x,y, inside)) {
+				if(is_near(x,y,lout)) {
 					color = vec3(outside, 0, 0);
 				} else {
 					color = vec3(inside, 0, 0);

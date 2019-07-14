@@ -668,12 +668,12 @@ struct ActiveBorder: IFilter {
 
 	float* _levelValues;
 
-	int _iterations = 0;
+	int _iterations = 25;
 	bool _showSquare = true;
 
-	float _precision = 0.5f;
+	float _precision = 0.128f;
 
-	int _xs[2] = {255, 313};
+	int _xs[2] = {358,378};
 	int _ys[2] = {137, 165};
 
 	int _kSize = 30;
@@ -685,7 +685,7 @@ struct ActiveBorder: IFilter {
 	float _lastCenter[2] = {0,0};
 
 	float _medianColorValue[3] = {0,0,0};
-	float _resizeSquareRadius = 100;
+	float _resizeSquareRadius = 50;
 
 	ActiveBorder(int w, int h) {
 		_width = w;
