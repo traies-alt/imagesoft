@@ -684,6 +684,9 @@ struct ActiveBorder: IFilter {
 
 	float _lastCenter[2] = {0,0};
 
+	bool isOccludingByColor = false;
+	float _lastCenterBeforeOcludingSameColor[2] = {0,0};
+
 	float _medianColorValue[3] = {0,0,0};
 	float _resizeSquareRadius = 50;
 

@@ -2116,8 +2116,8 @@ void ActiveBorder::RenderUI() {
     ImGui::SliderFloat("Resize Square Radius", &_resizeSquareRadius, 0, min(_width, _height) / 2);
 }
 
-float centerDistance(float center[2], float other[2]) {
-    return (center[0] - other[0]) * (center[0] - other[0]) + (center[1] - other[1]) * (center[1] - other[1]);
+float centerDistance(float x1, float y1, float x2, float y2) {
+    return (x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2);
 }
 
 void ActiveBorder::RunAndClean(GLuint prevTexture, GLuint levelValueSampleLocationCalculator, GLuint textSampleLocationCalculator, bool isFirst, bool shouldMove, bool clean) {
@@ -2170,194 +2170,230 @@ void ActiveBorder::ApplyFilter(GLuint prevTexture) {
 
     int insideCounter = 0;
     float inside = 0;
+    float outside = 1;
+
     float center[] = {0, 0};
 
-    /*int * levelValuesTags = new int[_width * _height];
+    int* levelValuesTags = new int[_width * _height];
+    int undefinedTag = -1;
     for (int i = 0; i < _width * _height; i++) {
-        levelValuesTags[i] = 0;
+        levelValuesTags[i] = undefinedTag;
     }
 
-    int tag = 1;
-
-    std::map<int,int> equivalence;*/
+    int tag = 0;
+    std::vector<int> equivalence;
 
     for (int x = 0; x < _width; ++x) {
         for (int y = 0; y < _height; ++y) {
             long pos = (y * _width + x);
-            if (_levelValues[pos] == inside) {
+
+            if (_levelValues[pos] != outside) {
                 center[0] = center[0] + x;
                 center[1] = center[1] + y;
                 insideCounter++;
-   //             // Paint adjacent
-			//	if (levelValuesTags[pos] == 0) {
-			//		if(x==0) {
-			//				if(y==0) {
-			//						levelValuesTags[pos] = tag;
-			//						tag++;
-			//				} else {
-			//						int prevT = levelValuesTags[pos - _width];
-			//						if(prevT == 0) {
-			//								levelValuesTags[pos] = tag;
-			//								tag++;
-			//						} else {
-			//								levelValuesTags[pos] = prevT;
-			//						}
-			//				}
-			//		} else {
-			//				if(y==0) {
-			//						int prevT = levelValuesTags[pos - 1];
-			//						if(prevT == 0) {
-			//								levelValuesTags[pos] = tag;
-			//								tag++;
-			//						} else {
-			//								levelValuesTags[pos] = prevT;
-			//						}
-			//				} else {
-			//						int prevTY = levelValuesTags[pos - _width];
-			//						int prevTX = levelValuesTags[pos - 1];
-			//						if(prevTY == 0) {
-			//								if(prevTX == 0) {
-			//										tag++;
-			//										levelValuesTags[pos] = tag;
-			//								} else {
-			//										levelValuesTags[pos] = prevTX;
-			//								}
-			//						} else {
-			//								if(prevTX == 0) {
-			//										levelValuesTags[pos] = prevTY;
-			//								} else {
-			//										auto newTag = min(equivalence[prevTX],  equivalence[prevTY]);
-			//										// if(equivalence.count(prevTX)){
-			//										// 		newTag = min(newTag, equivalence[prevTX]);
-			//										// }
-			//										// if(equivalence.count(prevTY)){
-			//										// 		newTag = min(newTag, equivalence[prevTY]);
-			//										// }
 
-			//										levelValuesTags[pos] = newTag;
-			//										equivalence[prevTX] = newTag;
-			//										equivalence[prevTY] = newTag;
-			//								}
-			//						}
-			//				}
-			//		}
+                //If not tagged
+                if (x == 0) {
+                    if (y == 0) {
+                        levelValuesTags[pos] = tag;
+                        tag++;
+                    } else {
+                        int prevT = levelValuesTags[pos - _width];
+                        if (prevT == undefinedTag) {
+                            levelValuesTags[pos] = tag;
+                            tag++;
+                        } else {
+                            levelValuesTags[pos] = prevT;
+                        }
+                    }
+                } else {
+                    if (y == 0) {
+                        int prevT = levelValuesTags[pos - 1];
+                        if (prevT == undefinedTag) {
+                            levelValuesTags[pos] = tag;
+                            tag++;
+                        } else {
+                            levelValuesTags[pos] = prevT;
+                        }
+                    } else {
+                        int prevTY = levelValuesTags[pos - _width];
+                        int prevTX = levelValuesTags[pos - 1];
+                        if (prevTY == undefinedTag) {
+                            if (prevTX == undefinedTag) {
+                                levelValuesTags[pos] = tag;
+                                tag++;
+                            } else {
+                                levelValuesTags[pos] = prevTX;
+                            }
+                        } else {
+                            if (prevTX == undefinedTag) {
+                                levelValuesTags[pos] = prevTY;
+                            } else {
+                                auto newTag = min(equivalence[prevTX], equivalence[prevTY]);
+                                equivalence[prevTX] = newTag;
+                                equivalence[prevTY] = newTag;
+                                levelValuesTags[pos] = newTag;
+                            }
+                        }
+                    }
+                }
 
-			//		if(!equivalence.count(levelValuesTags[pos])){
-			//				equivalence[levelValuesTags[pos]] = levelValuesTags[pos];
-			//		}
-				}
-			}
+                if (equivalence.size() < tag) {
+                    equivalence.push_back(tag - 1);
+                }
+            }
         }
-   // }
+    }
 
-   // for (int x = 0; x < _width; ++x) {
-   //     for (int y = 0; y < _height; ++y) {
-   //         long pos = (y * _width + x);
-   //         if(levelValuesTags[pos] > 0) {
-   //             int tempTag = levelValuesTags[pos];
-   //             levelValuesTags[pos] = equivalence[tempTag];
-   //         }
-   //     }
-   // }
+    std::map<int, int> realTags;
+    int realTagCounter = 0;
+    int curr = 0;
+    for (auto it = equivalence.begin() ; it != equivalence.end(); ++it) {
+        if(*it >= curr) {
+            realTags[*it] = realTagCounter;
+            realTagCounter++;
+        }
+        curr++;
+    }
 
-   // std::map<int, int>::iterator it = equivalence.begin();
-   // while (it != equivalence.end()) {
-   //     if(it ->first != it->second) {
-   //         std::map<int, int>::iterator toErase = it;
-   //         ++it;
-   //         equivalence.erase(toErase);
-   //     } else {
-   //         ++it;
-   //     }
-   // }
+    for (int k = 0; k < equivalence.size(); ++k) {
+        equivalence[k] = realTags[equivalence[k]];
+    }
+
+    for (int x = 0; x < _width; ++x) {
+        for (int y = 0; y < _height; ++y) {
+            long pos = (y * _width + x);
+            if(levelValuesTags[pos] != undefinedTag) {
+                int tempTag = levelValuesTags[pos];
+                levelValuesTags[pos] = equivalence[tempTag];
+            }
+        }
+    }
+
     if(insideCounter > 0) {
         center[0] = center[0] / insideCounter;
         center[1] = center[1] / insideCounter;
     }
 
-
-    /*int ts = 0;
     int realTag = 0;
-    if (tag > 2) {
+    if (realTagCounter > 1) {
+//        if(isOccludingByColor) {
+//            _lastCenter[0] = _lastCenterBeforeOcludingSameColor[0];
+//            _lastCenter[1] = _lastCenterBeforeOcludingSameColor[1];
+//        } else {
+            _lastCenter[0] = (_lastCenter[0] + center[0])/2;
+            _lastCenter[1] = (_lastCenter[1] + center[1])/2;
+//        }
         center[0] = INFINITY;
         center[1] = INFINITY;
-        for (auto it=equivalence.begin(); it!=equivalence.end(); ++it) {
-            int t = it->first;
-            float tCenter[2] = {0, 0};
-            int tInsideCounter = 0;
-            for (int x = 0; x < _width; ++x) {
-                for (int y = 0; y < _height; ++y) {
-                    long pos = (y * _width + x);
-                    if (levelValuesTags[pos] == t) {
-                        tCenter[0] = tCenter[0] + x;
-                        tCenter[1] = tCenter[1] + y;
-                        tInsideCounter++;
-                    }
-                }
-            }
-            if (tInsideCounter > 100) {
-                tCenter[0] /= tInsideCounter;
-                tCenter[1] /= tInsideCounter;
-                if (centerDistance(_lastCenter, center) > centerDistance(_lastCenter, tCenter)) {
-                    center[0] = tCenter[0];
-                    center[1] = tCenter[1];
-                    realTag = t;
-                }
-                ts++;
-            }
-        }
 
-        printf("real Tag out of%d\n", realTag, ts);
+        auto tCenterX = new float[realTagCounter]();
+		auto tCenterY = new float[realTagCounter]();
+		auto tCounter = new long[realTagCounter]();
+
+		for (int i = 0; i < realTagCounter; i++) {
+			tCenterX[i] = 0;
+			tCenterY[i] = 0;
+            tCounter[i] = 0;
+		}
+
         for (int x = 0; x < _width; ++x) {
             for (int y = 0; y < _height; ++y) {
                 long pos = (y * _width + x);
-                if (_levelValues[pos] == inside && levelValuesTags[pos] != realTag) {
-                    _levelValues[pos] = 1;
+                if (levelValuesTags[pos] != undefinedTag) {
+					auto rt = levelValuesTags[pos];
+                    tCenterX[rt] += x;
+                    tCenterY[rt] += y;
+                    tCounter[rt] ++;
                 }
             }
         }
 
+        for (int i = 0; i < realTagCounter; ++i) {
+            tCenterX[i] = tCenterX[i] / tCounter[i];
+            tCenterY[i] = tCenterY[i] / tCounter[i];
+            if(tCounter[i]>100) {
+                if (centerDistance(_lastCenter[0], _lastCenter[1], center[0], center[1])
+                    > centerDistance(_lastCenter[0], _lastCenter[1], tCenterX[i], tCenterY[i])) {
+                    center[0] = tCenterX[i];
+                    center[1] = tCenterY[i];
+                    insideCounter = tCounter[i];
+                    realTag = i;
+                }
+            }
+        }
+
+        for (int x = 0; x < _width; ++x) {
+            for (int y = 0; y < _height; ++y) {
+                long pos = (y * _width + x);
+                if (levelValuesTags[pos] != undefinedTag && levelValuesTags[pos] != realTag) {
+                    _levelValues[pos] = outside;
+                }
+            }
+        }
         _maskWeightsTexture = WeightedTexture2D(_width, _height, _levelValues, _maskWeightsTexture);
 		RunAndClean(prevTexture, levelValueSampleLocationCalculator, textSampleLocationCalculator, true, false, false);
-		RunAndClean(prevTexture, levelValueSampleLocationCalculator, textSampleLocationCalculator, true, false, true);
+
+		delete[] tCenterX;
+		delete[] tCenterY;
+		delete[] tCounter;
     }
+    delete[] levelValuesTags;
 
-    delete[] levelValuesTags;*/
+    if(!_showSquare) {
+        int kAmounts = _kcF;
+        _kcF = (_kcF + 1) % _kSize;
 
-    int kAmounts = _kcF;
-    _kcF = (_kcF + 1) % _kSize;
-
-    if (_kcF <= _kcI) {
-        _kcI = (_kcF + 1) % _kSize;
-        kAmounts = _kSize - 1;
-    }
-
-    _kc[_kcF] = insideCounter;
-
-    if (kAmounts > 0) {
-        float _kMedia = 0;
-        for (int j = _kcI; j != _kcF; j = (j + 1) % _kSize) {
-            _kMedia += _kc[j];
+        if (_kcF <= _kcI) {
+            _kcI = (_kcF + 1) % _kSize;
+            kAmounts = _kSize - 1;
         }
+        _kc[_kcF] = insideCounter;
+
+        if (kAmounts > 0) {
+            float _kMedia = 0;
+            for (int j = _kcI; j != _kcF; j = (j + 1) % _kSize) {
+                _kMedia += _kc[j];
+            }
 
 
-        _kMedia = _kMedia / kAmounts;
-        if (_kc[_kcF] < _kMedia * _umbral) {
-            printf("IsOccluding\n");
-            printf("center %f %f\n", center[0], center[1]);
-            int xmin = center[0] - _resizeSquareRadius;
-            int xmax = center[0] + _resizeSquareRadius;
-            int ymin = center[1] - _resizeSquareRadius;
-            int ymax = center[1] + _resizeSquareRadius;
-            ApplySquare(prevTexture, xmin, xmax, ymin, ymax, false);
-            isFirst = true;
-            delete[]_kc;
-            _kc = new int[_kSize]();
-            _kcI = 0;
-            _kcF = 0;
+            _kMedia = _kMedia / kAmounts;
+            if (_kc[_kcF] > _kMedia * (1 / _umbral)) {
+                printf("IsOccluding By Color\n");
+                isOccludingByColor = true;
+                _lastCenterBeforeOcludingSameColor[0] = center[0];
+                _lastCenterBeforeOcludingSameColor[1] = center[1];
+            }
+
+            if (kAmounts != _kSize - 1) {
+                isOccludingByColor = false;
+            }
+
+            if (_kc[_kcF] < _kMedia * _umbral) {
+                isOccludingByColor = false;
+                printf("IsOccluding\n");
+                printf("center %f %f\n", center[0], center[1]);
+                int xmin = center[0] - _resizeSquareRadius;
+                int xmax = center[0] + _resizeSquareRadius;
+                int ymin = center[1] - _resizeSquareRadius;
+                int ymax = center[1] + _resizeSquareRadius;
+                ApplySquare(prevTexture, xmin, xmax, ymin, ymax, false);
+                isFirst = true;
+                delete[]_kc;
+                _kc = new int[_kSize]();
+                _kcI = 0;
+                _kcF = 0;
+            }
+
+            if (!isOccludingByColor) {
+                _lastCenterBeforeOcludingSameColor[0] = center[0];
+                _lastCenterBeforeOcludingSameColor[1] = center[1];
+            }
+
+            printf("%d\n", isOccludingByColor);
+
         }
     }
-
 
     _lastCenter[0] = center[0];
     _lastCenter[1] = center[1];

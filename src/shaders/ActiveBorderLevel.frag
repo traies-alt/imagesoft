@@ -20,19 +20,29 @@ void main() {
 	float x = floor(UV.x * width);
 	float y = floor(UV.y * height);
 
-	if(abs(x - center.x)<5 && abs(y - center.y)<5) {
+    color = pixel;
+
+    if(abs(x - center.x)<5 && abs(y - center.y)<5) {
 		color = vec3(0,1,1);
 	} else {
-
+//        		if (abs(value - 0) < 0.01) {
+//        			color = vec3(1, 0, 0);
+//        		} else if (abs(value - 0.1) < 0.01) {
+//                    color = vec3(1, 1, 0);
+//                } else if (abs(value - 0.2) < 0.01) {
+//                    color = vec3(1, 1, 1);
+//                } else if (abs(value - 0.3) < 0.01) {
+//                    color = vec3(1, 0, 1);
+//                }
 		if (abs(value - outside) < 0.01) {
 			color = pixel;
 		} else if (abs(value - inside) < 0.01) {
 //			color = vec3(1, 0, 0);
 			color = vec3(1, 0, 0);
 		} else if (abs(value - lout) < 0.01) {
-			color = vec3(1, 0, 0);
+			color = vec3(0, 1, 0);
 		} else if (abs(value - lin) < 0.01) {
-			color = vec3(1, 0, 0);
+			color = vec3(0, 0, 1);
 		}
 	}
 }
