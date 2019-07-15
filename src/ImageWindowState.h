@@ -6,6 +6,7 @@
 #include <vector>
 #include <functional>
 #include <tuple>
+#include <algorithm>
 #include "Filters.h"
 
 struct IFilter;
@@ -85,7 +86,7 @@ struct ImageWindowStateVideo: ImageWindowState {
 	}
 
 	void nextFrame() {
-		currentFrame = (currentFrame + 1)%frames;
+		currentFrame = std::min(currentFrame + 1, frames - 1);
 	}
 
 	void prevFrame() {
