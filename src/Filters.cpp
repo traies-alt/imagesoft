@@ -2017,9 +2017,13 @@ void ActiveBorder::SetupShader() {
 
 	_maskWeightsTexture = WeightedTexture2D(_width, _height, _levelValues, _maskWeightsTexture);
 
+	glUseProgram(_programID);
+	glUniform3f(glGetUniformLocation(_programID, "fillColor"), _color[0], _color[1], _color[2]);
+
 	glUseProgram(_levelValueProgramId);
 	glUniform1f(glGetUniformLocation(_levelValueProgramId, "height"), _height);
 	glUniform1f(glGetUniformLocation(_levelValueProgramId, "width"), _width);
+
 }
 
 void ActiveBorder::ApplySquare(GLuint prevTexture, int xmin, int xmax, int ymin, int ymax, bool recalculateColor) {
@@ -2105,6 +2109,7 @@ void ActiveBorder::RenderUI() {
     ImGui::SliderInt2("Y", _ys, 0, _height);
 
     ImGui::Checkbox("stop Calculation", &_showSquare);
+    ImGui::Checkbox("Improved Tracking", &_improved);
 
     ImGui::Text("");
 
@@ -2114,10 +2119,18 @@ void ActiveBorder::RenderUI() {
     ImGui::SliderFloat("Umbral", &_umbral, 0, 1);
 
     ImGui::SliderFloat("Resize Square Radius", &_resizeSquareRadius, 0, min(_width, _height) / 2);
+
+		ImGui::ColorEdit3("Color", _color);
 }
 
 float centerDistance(float x1, float y1, float x2, float y2) {
     return (x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2);
+}
+
+float ActiveBorder::isMoreLikelyTheSame(float kMedia, float centerX, float centerY, int size, float newCetnerX, float newCenterY) {
+		float sizePart = abs(size - kMedia) / (_width * _height) * 0;
+		float centerPart = centerDistance(centerX, centerY, newCetnerX, newCenterY) / (_width*_width + _height * _height);
+    return sizePart + centerPart;
 }
 
 void ActiveBorder::RunAndClean(GLuint prevTexture, GLuint levelValueSampleLocationCalculator, GLuint textSampleLocationCalculator, bool isFirst, bool shouldMove, bool clean) {
@@ -2135,7 +2148,6 @@ void ActiveBorder::RunAndClean(GLuint prevTexture, GLuint levelValueSampleLocati
 }
 
 void ActiveBorder::ApplyFilter(GLuint prevTexture) {
-    static bool isFirst = false;
 
     SetupShader();
     if (_showSquare) {
@@ -2153,265 +2165,271 @@ void ActiveBorder::ApplyFilter(GLuint prevTexture) {
     glUniform1f(glGetUniformLocation(_levelValueProgramId, "prec"), _precision);
 
     if (isFirst) {
-		RunAndClean(prevTexture, levelValueSampleLocationCalculator, textSampleLocationCalculator, true, false, false);
+        RunAndClean(prevTexture, levelValueSampleLocationCalculator, textSampleLocationCalculator, true, false, false);
         iterations = _iterations;
     }
 
     isFirst = false;
 
     for (int i = 1; i < iterations && !_showSquare; ++i) {
-		RunAndClean(prevTexture, levelValueSampleLocationCalculator, textSampleLocationCalculator, false, true, false);
-		RunAndClean(prevTexture, levelValueSampleLocationCalculator, textSampleLocationCalculator, false, true, true);
+        RunAndClean(prevTexture, levelValueSampleLocationCalculator, textSampleLocationCalculator, false, true, false);
+        RunAndClean(prevTexture, levelValueSampleLocationCalculator, textSampleLocationCalculator, false, true, true);
     }
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, _levelValueTexture);
     glGetTexImage(GL_TEXTURE_2D, 0, GL_RED, GL_FLOAT, _levelValues);
 
-    int insideCounter = 0;
-    float inside = 0;
-    float outside = 1;
-
     float center[] = {0, 0};
 
-    int* levelValuesTags = new int[_width * _height];
-    int undefinedTag = -1;
-    for (int i = 0; i < _width * _height; i++) {
-        levelValuesTags[i] = undefinedTag;
-    }
+    if(_improved) {
+        int insideCounter = 0;
+        float inside = 0;
+        float outside = 1;
 
-    int tag = 0;
-    std::vector<int> equivalence;
 
-    for (int x = 0; x < _width; ++x) {
-        for (int y = 0; y < _height; ++y) {
-            long pos = (y * _width + x);
+        int* levelValuesTags = new int[_width * _height];
+        int undefinedTag = -1;
+        for (int i = 0; i < _width * _height; i++) {
+            levelValuesTags[i] = undefinedTag;
+        }
 
-            if (_levelValues[pos] != outside) {
-                center[0] = center[0] + x;
-                center[1] = center[1] + y;
-                insideCounter++;
+        int tag = 0;
+        std::vector<int> equivalence;
 
-                //If not tagged
-                if (x == 0) {
-                    if (y == 0) {
-                        levelValuesTags[pos] = tag;
-                        tag++;
-                    } else {
-                        int prevT = levelValuesTags[pos - _width];
-                        if (prevT == undefinedTag) {
+        for (int x = 0; x < _width; ++x) {
+            for (int y = 0; y < _height; ++y) {
+                long pos = (y * _width + x);
+
+                if (_levelValues[pos] != outside) {
+                    center[0] = center[0] + x;
+                    center[1] = center[1] + y;
+                    insideCounter++;
+
+                    //If not tagged
+                    if (x == 0) {
+                        if (y == 0) {
                             levelValuesTags[pos] = tag;
                             tag++;
                         } else {
-                            levelValuesTags[pos] = prevT;
-                        }
-                    }
-                } else {
-                    if (y == 0) {
-                        int prevT = levelValuesTags[pos - 1];
-                        if (prevT == undefinedTag) {
-                            levelValuesTags[pos] = tag;
-                            tag++;
-                        } else {
-                            levelValuesTags[pos] = prevT;
-                        }
-                    } else {
-                        int prevTY = levelValuesTags[pos - _width];
-                        int prevTX = levelValuesTags[pos - 1];
-                        if (prevTY == undefinedTag) {
-                            if (prevTX == undefinedTag) {
+                            int prevT = levelValuesTags[pos - _width];
+                            if (prevT == undefinedTag) {
                                 levelValuesTags[pos] = tag;
                                 tag++;
                             } else {
-                                levelValuesTags[pos] = prevTX;
+                                levelValuesTags[pos] = prevT;
+                            }
+                        }
+                    } else {
+                        if (y == 0) {
+                            int prevT = levelValuesTags[pos - 1];
+                            if (prevT == undefinedTag) {
+                                levelValuesTags[pos] = tag;
+                                tag++;
+                            } else {
+                                levelValuesTags[pos] = prevT;
                             }
                         } else {
-                            if (prevTX == undefinedTag) {
-                                levelValuesTags[pos] = prevTY;
+                            int prevTY = levelValuesTags[pos - _width];
+                            int prevTX = levelValuesTags[pos - 1];
+                            if (prevTY == undefinedTag) {
+                                if (prevTX == undefinedTag) {
+                                    levelValuesTags[pos] = tag;
+                                    tag++;
+                                } else {
+                                    levelValuesTags[pos] = prevTX;
+                                }
                             } else {
-                                auto newTag = min(equivalence[prevTX], equivalence[prevTY]);
-                                equivalence[prevTX] = newTag;
-                                equivalence[prevTY] = newTag;
-                                levelValuesTags[pos] = newTag;
+                                if (prevTX == undefinedTag) {
+                                    levelValuesTags[pos] = prevTY;
+                                } else {
+                                    auto newTag = min(equivalence[prevTX], equivalence[prevTY]);
+                                    equivalence[prevTX] = newTag;
+                                    equivalence[prevTY] = newTag;
+                                    levelValuesTags[pos] = newTag;
+                                }
                             }
+                        }
+                    }
+
+                    if (equivalence.size() < tag) {
+                        equivalence.push_back(tag - 1);
+                    }
+                }
+            }
+        }
+
+        std::map<int, int> realTags;
+        int realTagCounter = 0;
+        int index = 0;
+        for (auto it = equivalence.begin() ; it != equivalence.end(); ++it) {
+            if(*it >= index) {
+                realTags[*it] = realTagCounter;
+                realTagCounter++;
+            }
+            index++;
+        }
+
+        for (int k = 0; k < equivalence.size(); ++k) {
+            equivalence[k] = realTags[equivalence[k]];
+        }
+
+        if(insideCounter > 0) {
+            center[0] = center[0] / insideCounter;
+            center[1] = center[1] / insideCounter;
+        } else {
+            center[0] = _lastCenter[0];
+            center[1] = _lastCenter[1];
+        }
+
+        if(!_showSquare) {
+
+            int realTag = -1;
+            if (realTagCounter > 1) {
+                center[0] = INFINITY;
+                center[1] = INFINITY;
+
+                auto tCenterX = new float[realTagCounter]();
+                auto tCenterY = new float[realTagCounter]();
+                auto tCounter = new long[realTagCounter]();
+
+                for (int i = 0; i < realTagCounter; i++) {
+                    tCenterX[i] = 0;
+                    tCenterY[i] = 0;
+                    tCounter[i] = 0;
+                }
+
+                for (int x = 0; x < _width; ++x) {
+                    for (int y = 0; y < _height; ++y) {
+                        long pos = (y * _width + x);
+                        if (levelValuesTags[pos] != undefinedTag) {
+                            auto rt = equivalence[levelValuesTags[pos]];
+                            tCenterX[rt] += x;
+                            tCenterY[rt] += y;
+                            tCounter[rt]++;
                         }
                     }
                 }
 
-                if (equivalence.size() < tag) {
-                    equivalence.push_back(tag - 1);
+                int kAmounts = _kcF;
+                if (_kcF <= _kcI) {
+                    kAmounts = _kSize - 1;
                 }
-            }
-        }
-    }
 
-    std::map<int, int> realTags;
-    int realTagCounter = 0;
-    int curr = 0;
-    for (auto it = equivalence.begin() ; it != equivalence.end(); ++it) {
-        if(*it >= curr) {
-            realTags[*it] = realTagCounter;
-            realTagCounter++;
-        }
-        curr++;
-    }
+                float _kMedia = insideCounter;
 
-    for (int k = 0; k < equivalence.size(); ++k) {
-        equivalence[k] = realTags[equivalence[k]];
-    }
-
-    for (int x = 0; x < _width; ++x) {
-        for (int y = 0; y < _height; ++y) {
-            long pos = (y * _width + x);
-            if(levelValuesTags[pos] != undefinedTag) {
-                int tempTag = levelValuesTags[pos];
-                levelValuesTags[pos] = equivalence[tempTag];
-            }
-        }
-    }
-
-    if(insideCounter > 0) {
-        center[0] = center[0] / insideCounter;
-        center[1] = center[1] / insideCounter;
-    }
-
-    int realTag = 0;
-    if (realTagCounter > 1) {
-//        if(isOccludingByColor) {
-//            _lastCenter[0] = _lastCenterBeforeOcludingSameColor[0];
-//            _lastCenter[1] = _lastCenterBeforeOcludingSameColor[1];
-//        } else {
-            _lastCenter[0] = (_lastCenter[0] + center[0])/2;
-            _lastCenter[1] = (_lastCenter[1] + center[1])/2;
-//        }
-        center[0] = INFINITY;
-        center[1] = INFINITY;
-
-        auto tCenterX = new float[realTagCounter]();
-		auto tCenterY = new float[realTagCounter]();
-		auto tCounter = new long[realTagCounter]();
-
-		for (int i = 0; i < realTagCounter; i++) {
-			tCenterX[i] = 0;
-			tCenterY[i] = 0;
-            tCounter[i] = 0;
-		}
-
-        for (int x = 0; x < _width; ++x) {
-            for (int y = 0; y < _height; ++y) {
-                long pos = (y * _width + x);
-                if (levelValuesTags[pos] != undefinedTag) {
-					auto rt = levelValuesTags[pos];
-                    tCenterX[rt] += x;
-                    tCenterY[rt] += y;
-                    tCounter[rt] ++;
+                if (kAmounts > 0) {
+                    for (int j = _kcI; j != _kcF; j = (j + 1) % _kSize) {
+                        _kMedia += _kc[j];
+                    }
+                    _kMedia = _kMedia / kAmounts;
                 }
-            }
-        }
 
-        for (int i = 0; i < realTagCounter; ++i) {
-            tCenterX[i] = tCenterX[i] / tCounter[i];
-            tCenterY[i] = tCenterY[i] / tCounter[i];
-            if(tCounter[i]>100) {
-                if (centerDistance(_lastCenter[0], _lastCenter[1], center[0], center[1])
-                    > centerDistance(_lastCenter[0], _lastCenter[1], tCenterX[i], tCenterY[i])) {
-                    center[0] = tCenterX[i];
-                    center[1] = tCenterY[i];
-                    insideCounter = tCounter[i];
-                    realTag = i;
+                float fit = INFINITY;
+                for (int i = 0; i < realTagCounter; ++i) {
+                    if(tCounter[i]>100) {
+                        tCenterX[i] = tCenterX[i] / tCounter[i];
+                        tCenterY[i] = tCenterY[i] / tCounter[i];
+                        float tempFit = isMoreLikelyTheSame(_kMedia, _lastCenter[0], _lastCenter[1], tCounter[i],
+                                                            tCenterX[i], tCenterY[i]);
+                        if (fit > tempFit) {
+                            center[0] = tCenterX[i];
+                            center[1] = tCenterY[i];
+                            insideCounter = tCounter[i];
+                            realTag = i;
+                            fit = tempFit;
+                        }
+                    }
                 }
-            }
-        }
 
-        for (int x = 0; x < _width; ++x) {
-            for (int y = 0; y < _height; ++y) {
-                long pos = (y * _width + x);
-                if (levelValuesTags[pos] != undefinedTag && levelValuesTags[pos] != realTag) {
-                    _levelValues[pos] = outside;
+                for (int x = 0; x < _width; ++x) {
+                    for (int y = 0; y < _height; ++y) {
+                        long pos = (y * _width + x);
+                        if (levelValuesTags[pos] != undefinedTag && equivalence[levelValuesTags[pos]] != realTag) {
+                            _levelValues[pos] = outside;
+                        }
+                    }
                 }
-            }
-        }
-        _maskWeightsTexture = WeightedTexture2D(_width, _height, _levelValues, _maskWeightsTexture);
-		RunAndClean(prevTexture, levelValueSampleLocationCalculator, textSampleLocationCalculator, true, false, false);
 
-		delete[] tCenterX;
-		delete[] tCenterY;
-		delete[] tCounter;
-    }
-    delete[] levelValuesTags;
 
-    if(!_showSquare) {
-        int kAmounts = _kcF;
-        _kcF = (_kcF + 1) % _kSize;
+                _maskWeightsTexture = WeightedTexture2D(_width, _height, _levelValues, _maskWeightsTexture);
+                RunAndClean(prevTexture, levelValueSampleLocationCalculator, textSampleLocationCalculator, true, false,
+                            false);
 
-        if (_kcF <= _kcI) {
-            _kcI = (_kcF + 1) % _kSize;
-            kAmounts = _kSize - 1;
-        }
-        _kc[_kcF] = insideCounter;
-
-        if (kAmounts > 0) {
-            float _kMedia = 0;
-            for (int j = _kcI; j != _kcF; j = (j + 1) % _kSize) {
-                _kMedia += _kc[j];
+                delete[] tCenterX;
+                delete[] tCenterY;
+                delete[] tCounter;
             }
 
-
-            _kMedia = _kMedia / kAmounts;
-            if (_kc[_kcF] > _kMedia * (1 / _umbral)) {
-                printf("IsOccluding By Color\n");
-                isOccludingByColor = true;
-                _lastCenterBeforeOcludingSameColor[0] = center[0];
-                _lastCenterBeforeOcludingSameColor[1] = center[1];
+            delete[] levelValuesTags;
+            if (insideCounter > 0) {
+                _kc[_kcF] = insideCounter;
             }
+            if (!_showSquare) {
 
-            if (kAmounts != _kSize - 1) {
-                isOccludingByColor = false;
-            }
+                int kAmounts = _kcF;
+                _kcF = (_kcF + 1) % _kSize;
 
-            if (_kc[_kcF] < _kMedia * _umbral) {
-                isOccludingByColor = false;
-                printf("IsOccluding\n");
-                printf("center %f %f\n", center[0], center[1]);
-                int xmin = center[0] - _resizeSquareRadius;
-                int xmax = center[0] + _resizeSquareRadius;
-                int ymin = center[1] - _resizeSquareRadius;
-                int ymax = center[1] + _resizeSquareRadius;
-                ApplySquare(prevTexture, xmin, xmax, ymin, ymax, false);
-                isFirst = true;
-                delete[]_kc;
-                _kc = new int[_kSize]();
+                if (_kcF <= _kcI) {
+                    _kcI = (_kcF + 1) % _kSize;
+                    kAmounts = _kSize - 1;
+                }
+                _kc[_kcF] = insideCounter;
+
+                if (kAmounts > 0) {
+                    float _kMedia = 0;
+                    for (int j = _kcI; j != _kcF; j = (j + 1) % _kSize) {
+                        _kMedia += _kc[j];
+                    }
+
+                    _kMedia = _kMedia / kAmounts;
+
+                    if (insideCounter == 0 || _kc[_kcF] < _kMedia * _umbral) {
+                        printf("IsOccluding\n");
+                        printf("center %f %f\n", center[0], center[1]);
+                        int xmin = _lastCenter[0] - _resizeSquareRadius;
+                        int xmax = _lastCenter[0] + _resizeSquareRadius;
+                        int ymin = _lastCenter[1] - _resizeSquareRadius;
+                        int ymax = _lastCenter[1] + _resizeSquareRadius;
+                        ApplySquare(prevTexture, xmin, xmax, ymin, ymax, false);
+                        _framesSinceOcclusion = 0;
+                        isFirst = true;
+                        delete[]_kc;
+                        _kc = new int[_kSize]();
+                    } else {
+                        _framesSinceOcclusion++;
+                        if (_framesSinceOcclusion > 5 && center[0] >= 0 && _lastCenter[0] >= 0) {
+                            _lastCenter[0] = (_lastCenter[0] + center[0]) / 2;
+                            _lastCenter[1] = (_lastCenter[1] + center[1]) / 2;
+                        }
+                    }
+                }
+            } else {
                 _kcI = 0;
                 _kcF = 0;
             }
-
-            if (!isOccludingByColor) {
-                _lastCenterBeforeOcludingSameColor[0] = center[0];
-                _lastCenterBeforeOcludingSameColor[1] = center[1];
-            }
-
-            printf("%d\n", isOccludingByColor);
-
         }
     }
 
-    _lastCenter[0] = center[0];
-    _lastCenter[1] = center[1];
+    if(_improved) {
+        glUseProgram(_programID);
+        glUniform2f(glGetUniformLocation(_programID, "center"), center[0], center[1]);
+    } else {
+        glUseProgram(_programID);
+        glUniform2f(glGetUniformLocation(_programID, "center"), 0, 0);
+    }
 
-    glUseProgram(_programID);
-    glUniform2f(glGetUniformLocation(_programID, "center"), center[0], center[1]);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
     glUseProgram(_programID);
     glUniform1f(glGetUniformLocation(_programID, "height"), _height);
     glUniform1f(glGetUniformLocation(_programID, "width"), _width);
 
     ApplyTexture(_programID, _levelValueTexture,
-	glGetUniformLocation(_programID, "levelValueSampler"));
-	glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
-	glUseProgram(_programID);
-	DrawTexturedTriangles(prevTexture, glGetUniformLocation(_programID, "myTextureSampler"));
+                 glGetUniformLocation(_programID, "levelValueSampler"));
+    glBindFramebuffer(GL_FRAMEBUFFER, _outputFramebuffer);
+    glUseProgram(_programID);
+    DrawTexturedTriangles(prevTexture, glGetUniformLocation(_programID, "myTextureSampler"));
 }
 
 void HarrisFilter::InitShader() {

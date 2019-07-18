@@ -676,17 +676,19 @@ struct ActiveBorder: IFilter {
 	int _xs[2] = {358,378};
 	int _ys[2] = {137, 165};
 
-	int _kSize = 30;
+	int _kSize = 80;
 	int* _kc;
 	int _kcI = 0;
 	int _kcF = 0;
 	float _umbral = 0.3f;
 
+	bool _improved = true;
 	float _lastCenter[2] = {0,0};
-
-	bool isOccludingByColor = false;
+	float _color[3] = {1, 0, 0};
 	float _lastCenterBeforeOcludingSameColor[2] = {0,0};
+	bool isFirst = false;
 
+    int _framesSinceOcclusion = 0;
 	float _medianColorValue[3] = {0,0,0};
 	float _resizeSquareRadius = 50;
 
@@ -705,6 +707,7 @@ struct ActiveBorder: IFilter {
 	void RenderUI() override;
 	void ApplyFilter(GLuint prevTexture) override;
 	void ActiveBorder::RunAndClean(GLuint prevTexture, GLuint textSampleLocationCalculator, GLuint levelValueSampleLocationCalculator, bool isFirst, bool shouldMove, bool clean);
+    float isMoreLikelyTheSame(float kMedia, float centerX, float centerY, int size, float newCetnerX, float newCenterY);
 };
 
 struct HarrisFilter: IFilter {

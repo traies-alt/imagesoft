@@ -231,7 +231,7 @@ void main() {
 
 	if(cleaning) {
 		if (x>= width || x<=0 || y>=height || y<=0) {
-			color = vec3(value, 0, 0);
+			color = vec3(outside, 0, 0);
 		} else if(is_sorrounded(x,y,inside)) {
 			color = vec3(inside, 0, 0);
 		} else if (abs(value - outside) < 0.01) {
@@ -270,7 +270,7 @@ void main() {
 	} else {
 	if(shouldMove) {
 		if (x>= width || x<=0 || y>=height || y<=0) {
-			color = vec3(value, 0, 0);
+			color = vec3(outside, 0, 0);
 		} else if (abs(value - outside) < 0.01) {
 			//OUTSIDE SHOULD BE LOUT
 			if(is_near(x,y, lout) && is_prob_inside(pixel)){
